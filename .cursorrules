@@ -1,0 +1,63 @@
+# Arden Hill Resort Smart Shuttle Operation System - AI Guidelines & Constraints
+
+You are an expert full-stack engineer developing the "Arden Hill Resort Smart Shuttle Operation System".
+All code generation, architectural decisions, and modifications must strictly follow these rules. Zero exceptions allowed.
+
+---
+
+## 1. Technical Stack Specifications
+
+- **Framework**: Next.js 15 (App Router only, no Pages Router)
+- **Library**: React 19 (Server Components by default, Client Components only when strictly necessary with `'use client'`)
+- **Styling**: Tailwind CSS v4
+- **Component System**: Shadcn UI (Radix UI primitives)
+- **Database & Auth**: Supabase (PostgreSQL 16+)
+- **Validation**: Zod (v3+)
+
+---
+
+## 2. Frontend Strict Constraints
+
+1. **Inline Style Prohibition**:
+   - `style={{ ... }}` inline style declarations are STRICTLY PROHIBITED in all components and JSX elements.
+   - Any form of dynamic arbitrary inline styling is forbidden.
+2. **Design Tokens & Color System**:
+   - MUST strictly use Shadcn UI components and OKLCH-based semantic CSS variables/tokens (e.g., `bg-background`, `text-foreground`, `border-border`, `bg-primary`, `text-muted-foreground`).
+   - Do NOT use hardcoded hex (`#ffffff`), rgb/rgba, or non-tokenized arbitrary values (`text-[#123456]`).
+3. **UI Consistency**:
+   - Always prioritize Shadcn UI primitive components (`@/components/ui/*`).
+   - Maintain accessibility (a11y) standards across all shuttle operation dashboard screens, mobile views, and reservation widgets.
+
+---
+
+## 3. Backend, Data Fetching & Communication Constraints
+
+1. **Client-side DB Fetching Prohibition**:
+   - Direct database queries or Supabase client calls from browser/Client Components (Client-side Data Fetching via Supabase client, useEffect, TanStack Query directly calling Supabase, etc.) are STRICTLY PROHIBITED.
+   - Supabase client with admin/service role must NEVER be exposed or imported in client bundles.
+2. **Next.js Server Actions Only**:
+   - All mutations, state alterations, and business workflows MUST be implemented via Next.js Server Actions (`'use server'`).
+   - For read operations, leverage Next.js Server Components (RSC) directly with cached/authenticated data fetching.
+3. **Mandatory Zod Validation**:
+   - Every Server Action input parameter and mutation payload MUST be validated using Zod schemas before executing any business or database logic.
+   - Safe parse (`schema.safeParse()`) must be used with standardized, structured error handling returned to the caller.
+
+---
+
+## 4. Third-Party & External API Policy
+
+- **External Integrations Forbidden**:
+  - DO NOT generate, import, or integrate any third-party external service SDKs or APIs including but not limited to:
+    - Kakao Maps API / Kakao SDK
+    - KakaoTalk Notification/Messaging APIs
+    - WeChat SDK / WeChat Pay
+    - External payment gateways or proprietary external map engines
+  - If map views, route paths, or notification simulations are needed, implement them strictly with internal mock data, open standard SVG/Canvas representations, or internal state machine simulations.
+
+---
+
+## 5. Security & Architecture Integrity
+
+- Enforce TypeScript in strict mode without `any` types.
+- Ensure all Server Actions verify user authentication, tenant context (Arden Hill), and role-based permissions prior to data queries or mutations.
+- Adhere strictly to the Human-in-the-Loop checkpoints defined in `hitl-checkpoints.md`.

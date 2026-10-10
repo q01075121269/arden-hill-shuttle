@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --background: oklch(0.985 0.005 240);
+    --foreground: oklch(0.20 0.02 245);
+    --card: #ffffff;
+    --card-foreground: oklch(0.20 0.02 245);
+    --popover: #ffffff;
+    --popover-foreground: oklch(0.20 0.02 245);
+    --primary: oklch(0.38 0.11 155);
+    --primary-foreground: #ffffff;
+    --secondary: oklch(0.96 0.015 155);
+    --secondary-foreground: oklch(0.25 0.07 155);
+    --muted: oklch(0.95 0.008 240);
+    --muted-foreground: oklch(0.50 0.02 240);
+    --accent: oklch(0.94 0.03 85);
+    --accent-foreground: oklch(0.28 0.06 85);
+    --destructive: oklch(0.58 0.20 25);
+    --destructive-foreground: #ffffff;
+    --border: oklch(0.91 0.008 240);
+    --input: oklch(0.91 0.008 240);
+    --ring: oklch(0.38 0.11 155);
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: #111318;
+    --foreground: #F8FAFC;
+    --card: #1E222B;
+    --card-foreground: #F1F5F9;
+    --popover: #1E222B;
+    --popover-foreground: #F1F5F9;
+    --primary: oklch(0.72 0.14 155);
+    --primary-foreground: #111318;
+    --secondary: #1E293B;
+    --secondary-foreground: #E2E8F0;
+    --muted: #1E293B;
+    --muted-foreground: #94A3B8;
+    --accent: #253347;
+    --accent-foreground: #F8FAFC;
+    --destructive: oklch(0.65 0.22 25);
+    --destructive-foreground: #111318;
+    --border: #1E293B;
+    --input: #1E293B;
+    --ring: oklch(0.72 0.14 155);
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* 2026 럭셔리 세그먼트 컨트롤 트랙 */
+.segmented-track {
+  display: flex;
+  background-color: oklch(0.93 0.008 240 / 0.6);
+  padding: 4px;
+  border-radius: 1rem;
+  border: 1px solid oklch(0.90 0.01 240 / 0.8);
+}
+.dark .segmented-track {
+  background-color: #1E293B;
+  border-color: #2D3D54;
+}
+
+/* 스퀴시(Squishy) 터치 인터랙션 효과 (Scale 0.96 햅틱 느낌 극대화) */
+.squishy-btn {
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  will-change: transform;
+}
+.squishy-btn:active {
+  transform: scale(0.96);
+}
+
+/* 셔틀 위치 보기 펄스 테두리 강조 애니메이션 */
+@keyframes tracker-ring-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 oklch(0.38 0.11 155 / 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 8px oklch(0.38 0.11 155 / 0);
+  }
+}
+.tracker-pulse {
+  animation: tracker-ring-pulse 2s infinite ease-in-out;
+}
+
+/* 프리미엄 모달 백드롭 블러 */
+.modal-backdrop {
+  background-color: rgb(15 23 42 / 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.dark .modal-backdrop {
+  background-color: rgb(0 0 0 / 0.75);
+}
+
+/* 운행일지 인쇄 전용 @media print 스타일 (A4 Portrait 1:1 완벽 출력) */
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
+@media print {
+  html, body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .no-print, header, nav, footer, button, .theme-toggle {
+    display: none !important;
+  }
+  .printable-paper {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    page-break-inside: avoid !important;
+  }
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+  th, td {
+    border: 1px solid #000000 !important;
+  }
+}
