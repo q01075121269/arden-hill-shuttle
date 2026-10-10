@@ -509,6 +509,38 @@ export async function deleteReservationByAdminAction(
 }
 
 /**
+ * 3-1. 예약 승차 상태 원터치 토글 ([승차 완료] <-> [대기])
+ */
+export async function toggleReservationBoardedAction(
+  reservationId: string
+): Promise<AdminActionResult<{ reservationId: string; nextStatus: "boarded" | "waiting"; daily?: DailyOperationData }>> {
+  if (!reservationId) {
+    return { success: false, error: "예약 ID가 누락되었습니다." };
+  }
+
+  const target = GLOBAL_OPERATIONS_RESERVATIONS.find((r) => r.id === reservationId);
+  if (!target) {
+    return { success: false, error: "해당 예약을 찾을 수 없습니다." };
+  }
+
+  const nextStatus: "boarded" | "waiting" = target.boardedStatus === "boarded" ? "waiting" : "boarded";
+  target.boardedStatus = nextStatus;
+  target.updatedAt = new Date().toISOString();
+
+  const dailyResult = await getDailyOperationDataAction(target.date);
+
+  return {
+    success: true,
+    data: {
+      reservationId,
+      nextStatus,
+      daily: dailyResult.success ? dailyResult.data : undefined,
+    },
+    message: `${target.passengerName} 님의 상태가 [${nextStatus === "boarded" ? "승차 완료" : "대기"}]로 변경되었습니다.`,
+  };
+}
+
+/**
  * 4. 특정 일자 대체 경유지 설정 및 전 모듈 동기화 (setAlternativeRoute)
  */
 export async function setAlternativeRouteAction(

@@ -12,6 +12,8 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Plus,
   Search,
   CheckCircle2,
@@ -52,6 +54,7 @@ import {
   upsertReservationByAdminAction,
   deleteReservationByAdminAction,
   setAlternativeRouteAction,
+  toggleReservationBoardedAction,
   type DailyOperationData,
   type OperationRoundSummary,
   type OperationReservationItem,
@@ -91,10 +94,27 @@ export function AdminMobileDashboard() {
   const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
   const [isStopoverSheetOpen, setIsStopoverSheetOpen] = useState(false);
   const [selectedRoundForPax, setSelectedRoundForPax] = useState<OperationRoundSummary | null>(null);
+  const [expandedRoundKey, setExpandedRoundKey] = useState<string | null>("outbound-1");
   const [isAddRsvModalOpen, setIsAddRsvModalOpen] = useState(false);
   const [editingReservation, setEditingReservation] = useState<OperationReservationItem | null>(null);
   const [isAddResidentModalOpen, setIsAddResidentModalOpen] = useState(false);
   const [editingResident, setEditingResident] = useState<ResidentItem | null>(null);
+
+  // 승차 상태 원터치 토글 핸들러
+  const handleToggleBoarded = (rsvId: string) => {
+    startTransition(async () => {
+      const res = await toggleReservationBoardedAction(rsvId);
+      if (res.success && res.data.daily) {
+        setOperationsData(res.data.daily);
+        if (selectedRoundForPax) {
+          const matched = [...res.data.daily.outboundRounds, ...res.data.daily.inboundRounds].find(
+            (r) => r.direction === selectedRoundForPax.direction && r.roundNumber === selectedRoundForPax.roundNumber
+          );
+          if (matched) setSelectedRoundForPax(matched);
+        }
+      }
+    });
+  };
 
   // 1. [운행·예약] 상태
   const [operationsData, setOperationsData] = useState<DailyOperationData | null>(null);
@@ -506,58 +526,191 @@ export function AdminMobileDashboard() {
                 </div>
               ) : (
                 displayedRounds.map((round) => {
+                  const roundKey = `${round.direction}-${round.roundNumber}`;
+                  const isExpanded = expandedRoundKey === roundKey;
                   const isOutbound = round.direction === "outbound";
                   const isCounty = round.totalPax >= 6;
                   return (
                     <div
-                      key={`${round.direction}-${round.roundNumber}`}
-                      onClick={() => setSelectedRoundForPax(round)}
-                      className="p-3 bg-white dark:bg-[#151D2A] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:border-emerald-500/50 cursor-pointer squishy-btn transition-all"
+                      key={roundKey}
+                      className={`rounded-2xl border transition-all overflow-hidden ${
+                        isExpanded
+                          ? "bg-white dark:bg-[#151D2A] border-emerald-500 dark:border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
+                          : "bg-white dark:bg-[#151D2A] border-slate-200/80 dark:border-slate-800 shadow-2xs hover:border-slate-300"
+                      }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-black shrink-0 ${
-                              isOutbound
-                                ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800"
-                                : "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800"
-                            }`}
-                          >
-                            {isOutbound ? "하행" : "상행"} {round.roundNumber}회차
-                          </span>
-                          <span className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-1 truncate">
-                            <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                            {round.timeText} 출발
-                          </span>
+                      {/* 회차 카드 헤더 (터치 시 바로 밑으로 탑승자 명단 아코디언 토글) */}
+                      <div
+                        onClick={() => setExpandedRoundKey((prev) => (prev === roundKey ? null : roundKey))}
+                        className="p-3 cursor-pointer squishy-btn"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-black shrink-0 ${
+                                isOutbound
+                                  ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800"
+                                  : "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800"
+                              }`}
+                            >
+                              {isOutbound ? "하행" : "상행"} {round.roundNumber}회차
+                            </span>
+                            <span className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-1 truncate">
+                              <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                              {round.timeText} 출발
+                            </span>
+                          </div>
+
+                          {/* 탄력 배차 배지 & 아코디언 아이콘 */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${
+                                isCounty
+                                  ? "bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300"
+                                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                              }`}
+                            >
+                              {isCounty ? <Bus className="h-3 w-3" /> : <Car className="h-3 w-3" />}
+                              {isCounty ? "29인승 카운티" : "카니발"}
+                            </span>
+                            <div className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500">
+                              {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                            </div>
+                          </div>
                         </div>
 
-                        {/* 탄력 배차 배지 */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${
-                              isCounty
-                                ? "bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300"
-                                : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                            }`}
-                          >
-                            {isCounty ? <Bus className="h-3 w-3" /> : <Car className="h-3 w-3" />}
-                            {isCounty ? "29인승 카운티" : "카니발"}
+                        {/* 예약 요약 및 안내 */}
+                        <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
+                          <div className="font-bold text-slate-600 dark:text-slate-300 truncate">
+                            예약: <span className="font-black text-emerald-600 dark:text-emerald-400">{round.totalPax}명</span>
+                            <span className="text-[10px] text-slate-400 ml-1">
+                              (승차 {round.boardedPax}/{round.totalPax}명)
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 shrink-0">
+                            {isExpanded ? "명단 접기 ▴" : "명단 보기 & 승차 확인 ▾"}
                           </span>
                         </div>
                       </div>
 
-                      {/* 예약 요약 및 터치 안내 */}
-                      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-                        <div className="font-bold text-slate-600 dark:text-slate-300 truncate">
-                          예약 승객: <span className="font-black text-emerald-600 dark:text-emerald-400">{round.totalPax}명</span>
-                          <span className="text-[10px] text-slate-400 ml-1">
-                            ({round.reservations.length}개 팀)
-                          </span>
+                      {/* =========================================================================
+                          [핵심] 해당 시간 바로 밑으로 인라인 노출되는 탑승자 명단 & 승차 버튼
+                          ========================================================================= */}
+                      {isExpanded && (
+                        <div className="p-3 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 space-y-2.5 animate-in slide-in-from-top-1 duration-150">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                              탑승자 명단 ({round.reservations.length}개 팀)
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedRoundForPax(round);
+                                setIsAddRsvModalOpen(true);
+                              }}
+                              className="px-2 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[10px] flex items-center gap-1 squishy-btn"
+                            >
+                              <Plus className="h-3 w-3" />
+                              <span>예약 수기 추가</span>
+                            </button>
+                          </div>
+
+                          {round.reservations.length === 0 ? (
+                            <div className="py-5 text-center text-xs font-bold text-slate-400 bg-white dark:bg-[#151D2A] rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                              해당 회차에 예약된 승객이 없습니다.
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {round.reservations.map((rsv) => {
+                                const isBoarded = rsv.boardedStatus === "boarded";
+
+                                return (
+                                  <div
+                                    key={rsv.id}
+                                    className={`p-3 rounded-xl border transition-all space-y-2 ${
+                                      isBoarded
+                                        ? "bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800/80"
+                                        : "bg-white dark:bg-[#151D2A] border-slate-200/80 dark:border-slate-800 shadow-2xs"
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="min-w-0 flex-1 space-y-0.5">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="px-1.5 py-0.2 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-black shrink-0">
+                                            {rsv.pickupLocation}
+                                          </span>
+                                          <span
+                                            className={`font-black text-sm ${
+                                              isBoarded ? "line-through text-slate-400" : "text-slate-900 dark:text-slate-100"
+                                            }`}
+                                          >
+                                            {rsv.passengerName} ({rsv.passengerCount}명)
+                                          </span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                                          하차: {rsv.dropoffLocation}
+                                        </p>
+                                      </div>
+
+                                      {/* 원터치 [승차 완료 / 승차] 토글 버튼 */}
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleBoarded(rsv.id);
+                                        }}
+                                        className={`h-9 px-3 rounded-xl font-black text-xs flex items-center justify-center gap-1 squishy-btn border transition-all shrink-0 cursor-pointer ${
+                                          isBoarded
+                                            ? "bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-500/20"
+                                            : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50"
+                                        }`}
+                                      >
+                                        <Check className={`h-3.5 w-3.5 ${isBoarded ? "text-white" : "text-emerald-600"}`} />
+                                        <span>{isBoarded ? "승차 완료" : "승차"}</span>
+                                      </button>
+                                    </div>
+
+                                    {/* 하단 전화 및 수정/취소 버튼 */}
+                                    <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
+                                      <a
+                                        href={`tel:${rsv.phone}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-emerald-600 dark:text-emerald-400 font-mono text-[11px] font-bold flex items-center gap-1 hover:underline"
+                                      >
+                                        <PhoneCall className="h-3 w-3" />
+                                        <span>{rsv.phone}</span>
+                                      </a>
+
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingReservation(rsv);
+                                          }}
+                                          className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold hover:bg-slate-200"
+                                        >
+                                          수정
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteReservation(rsv.id);
+                                          }}
+                                          className="px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-[10px] font-bold hover:bg-rose-100"
+                                        >
+                                          취소
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 shrink-0">
-                          명단 확인/관리 ➔
-                        </span>
-                      </div>
+                      )}
                     </div>
                   );
                 })

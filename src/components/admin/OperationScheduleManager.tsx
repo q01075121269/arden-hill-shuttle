@@ -31,6 +31,7 @@ import {
   deleteReservationByAdminAction,
   setAlternativeRouteAction,
   getMonthlyRouteScheduleAction,
+  toggleReservationBoardedAction,
   type DailyOperationData,
   type OperationRoundSummary,
   type OperationReservationItem,
@@ -239,6 +240,27 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
         setFeedback({ type: "error", text: res.error || "취소 실패" });
       }
       setDeleteTargetReservation(null);
+    });
+  };
+
+  // 예약 승차 상태 원터치 토글 핸들러
+  const handleToggleBoarded = (reservationId: string) => {
+    startTransition(async () => {
+      const res = await toggleReservationBoardedAction(reservationId);
+      if (res.success) {
+        if (res.data.daily) {
+          setDailyData(res.data.daily);
+        }
+        setFeedback({
+          type: "success",
+          text: isKr ? "탑승 승차 상태가 성공적으로 변경되었습니다." : "乘车状态已更新。",
+        });
+      } else {
+        setFeedback({
+          type: "error",
+          text: res.error || (isKr ? "승차 상태 변경 실패" : "更新失败"),
+        });
+      }
     });
   };
 
@@ -456,18 +478,29 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
                       key={key}
                       className="rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 overflow-hidden"
                     >
-                      {/* 회차 헤더 요약 바 */}
-                      <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900/80">
+                      {/* 회차 헤더 요약 바 (시간/행 클릭 시 바로 밑으로 탑승자 명단 펼침) */}
+                      <div
+                        onClick={() => toggleRoundExpand(key)}
+                        className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900/80 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors select-none"
+                      >
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            onClick={() => toggleRoundExpand(key)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleRoundExpand(key);
+                            }}
                             className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                            title={isExpanded ? "명단 접기" : "명단 펼치기"}
                           >
                             {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                           </button>
-                          <div className="font-black text-slate-900 dark:text-white text-sm">
-                            {round.roundNumber}회차 ({round.timeText})
+                          <div className="font-black text-slate-900 dark:text-white text-sm flex items-center gap-1.5 flex-wrap">
+                            <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                            <span>{round.roundNumber}회차 ({round.timeText})</span>
+                            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                              {isExpanded ? "명단 접기 ▴" : "클릭 시 탑승자 명단 & 승차 버튼 보기 ▾"}
+                            </span>
                           </div>
                           {/* 탄력 배차 결과 배지 */}
                           <span
@@ -482,7 +515,7 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                           <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
                             예약 <strong>{round.totalPax}명</strong> (탑승 완료 {round.boardedPax}명)
                           </span>
@@ -499,7 +532,7 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
 
                       {/* 펼쳐진 승객 명단 인라인 테이블 */}
                       {isExpanded && (
-                        <div className="p-3 border-t border-slate-200/60 dark:border-slate-800 overflow-x-auto">
+                        <div className="p-3 border-t border-slate-200/60 dark:border-slate-800 overflow-x-auto bg-slate-50/70 dark:bg-slate-900/60">
                           {round.reservations.length === 0 ? (
                             <div className="py-6 text-center text-xs text-slate-400">
                               {isKr ? "현재 등록된 예약 승객이 없습니다." : "当前无预约乘客。"}
@@ -514,72 +547,96 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
                                   <th className="py-2 px-3 text-center">{isKr ? "인원" : "人数"}</th>
                                   <th className="py-2 px-3">{isKr ? "하차 희망지" : "下车地点"}</th>
                                   <th className="py-2 px-3 text-center">{isKr ? "수납 상태" : "支付"}</th>
-                                  <th className="py-2 px-3 text-center">{isKr ? "승차 상태" : "登车"}</th>
+                                  <th className="py-2 px-3 text-center">{isKr ? "원터치 승차 버튼" : "登车操作"}</th>
                                   <th className="py-2 px-3 text-right">{isKr ? "관리 액션" : "操作"}</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-200/50 dark:divide-slate-800/50">
-                                {round.reservations.map((res) => (
-                                  <tr key={res.id} className="hover:bg-white dark:hover:bg-slate-800/40">
-                                    <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
-                                      {res.pickupLocation}
-                                    </td>
-                                    <td className="py-2.5 px-3 font-black text-slate-800 dark:text-slate-200">
-                                      {res.passengerName}
-                                    </td>
-                                    <td className="py-2.5 px-3 font-mono text-slate-500">
-                                      {res.phone}
-                                    </td>
-                                    <td className="py-2.5 px-3 text-center font-bold">
-                                      {res.passengerCount}명
-                                    </td>
-                                    <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
-                                      {res.dropoffLocation}
-                                    </td>
-                                    <td className="py-2.5 px-3 text-center">
-                                      <span
-                                        className={`px-2 py-0.5 rounded-md font-bold text-[11px] ${
-                                          res.paymentStatus === "paid"
-                                            ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
-                                            : "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300"
-                                        }`}
-                                      >
-                                        {res.paymentStatus === "paid" ? "완납" : "미납"}
-                                      </span>
-                                    </td>
-                                    <td className="py-2.5 px-3 text-center">
-                                      <span
-                                        className={`px-2 py-0.5 rounded-md font-bold text-[11px] ${
-                                          res.boardedStatus === "boarded"
-                                            ? "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300"
-                                            : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                                        }`}
-                                      >
-                                        {res.boardedStatus === "boarded" ? "승차 완료" : "대기"}
-                                      </span>
-                                    </td>
-                                    <td className="py-2.5 px-3 text-right">
-                                      <div className="flex items-center justify-end gap-1">
+                                {round.reservations.map((res) => {
+                                  const isBoarded = res.boardedStatus === "boarded";
+                                  return (
+                                    <tr
+                                      key={res.id}
+                                      className={`transition-colors ${
+                                        isBoarded
+                                          ? "bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                          : "hover:bg-white dark:hover:bg-slate-800/40"
+                                      }`}
+                                    >
+                                      <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[11px] font-black">
+                                          {res.pickupLocation}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5 px-3 font-black text-slate-800 dark:text-slate-200">
+                                        <span className={isBoarded ? "line-through text-slate-400" : ""}>
+                                          {res.passengerName}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5 px-3 font-mono text-slate-500">
+                                        {res.phone}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-center font-bold">
+                                        {res.passengerCount}명
+                                      </td>
+                                      <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
+                                        {res.dropoffLocation}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-center">
+                                        <span
+                                          className={`px-2 py-0.5 rounded-md font-bold text-[11px] ${
+                                            res.paymentStatus === "paid"
+                                              ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
+                                              : "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300"
+                                          }`}
+                                        >
+                                          {res.paymentStatus === "paid" ? "완납" : "미납"}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5 px-3 text-center">
+                                        {/* 원터치 [승차 완료 / 승차] 토글 버튼 */}
                                         <button
                                           type="button"
-                                          onClick={() => openEditReservationModal(res)}
-                                          className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white"
-                                          title={isKr ? "예약 수정" : "修改"}
+                                          disabled={isPending}
+                                          onClick={() => handleToggleBoarded(res.id)}
+                                          className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-xs transition-all squishy-btn border shadow-2xs cursor-pointer ${
+                                            isBoarded
+                                              ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
+                                              : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                          }`}
+                                          title={
+                                            isBoarded
+                                              ? "클릭 시 승차 취소 (대기 상태로 변경)"
+                                              : "클릭 시 즉시 승차 완료 처리"
+                                          }
                                         >
-                                          <Pencil className="h-3.5 w-3.5" />
+                                          <Check className={`h-3.5 w-3.5 ${isBoarded ? "text-white stroke-[3]" : "text-emerald-600"}`} />
+                                          <span>{isBoarded ? "승차 완료" : "승차"}</span>
                                         </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setDeleteTargetReservation(res)}
-                                          className="p-1 rounded-md text-rose-400 hover:text-rose-600"
-                                          title={isKr ? "예약 삭제" : "删除"}
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => openEditReservationModal(res)}
+                                            className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                                            title={isKr ? "예약 수정" : "修改"}
+                                          >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setDeleteTargetReservation(res)}
+                                            className="p-1 rounded-md text-rose-400 hover:text-rose-600"
+                                            title={isKr ? "예약 삭제" : "删除"}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           )}
@@ -623,17 +680,29 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
                       key={key}
                       className="rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 overflow-hidden"
                     >
-                      <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900/80">
+                      {/* 회차 헤더 요약 바 (시간/행 클릭 시 바로 밑으로 탑승자 명단 펼침) */}
+                      <div
+                        onClick={() => toggleRoundExpand(key)}
+                        className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900/80 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors select-none"
+                      >
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            onClick={() => toggleRoundExpand(key)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleRoundExpand(key);
+                            }}
                             className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                            title={isExpanded ? "명단 접기" : "명단 펼치기"}
                           >
                             {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                           </button>
-                          <div className="font-black text-slate-900 dark:text-white text-sm">
-                            {round.roundNumber}회차 ({round.timeText})
+                          <div className="font-black text-slate-900 dark:text-white text-sm flex items-center gap-1.5 flex-wrap">
+                            <Clock className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                            <span>{round.roundNumber}회차 ({round.timeText})</span>
+                            <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800">
+                              {isExpanded ? "명단 접기 ▴" : "클릭 시 탑승자 명단 & 승차 버튼 보기 ▾"}
+                            </span>
                           </div>
                           <span
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black border ${
@@ -647,7 +716,7 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                           <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
                             예약 <strong>{round.totalPax}명</strong> (탑승 완료 {round.boardedPax}명)
                           </span>
@@ -662,8 +731,9 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
                         </div>
                       </div>
 
+                      {/* 펼쳐진 승객 명단 인라인 테이블 */}
                       {isExpanded && (
-                        <div className="p-3 border-t border-slate-200/60 dark:border-slate-800 overflow-x-auto">
+                        <div className="p-3 border-t border-slate-200/60 dark:border-slate-800 overflow-x-auto bg-slate-50/70 dark:bg-slate-900/60">
                           {round.reservations.length === 0 ? (
                             <div className="py-6 text-center text-xs text-slate-400">
                               {isKr ? "현재 등록된 예약 승객이 없습니다." : "当前无预约乘客。"}
@@ -678,72 +748,96 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
                                   <th className="py-2 px-3 text-center">{isKr ? "인원" : "人数"}</th>
                                   <th className="py-2 px-3">{isKr ? "하차 희망지(동수)" : "下车地点"}</th>
                                   <th className="py-2 px-3 text-center">{isKr ? "수납 상태" : "支付"}</th>
-                                  <th className="py-2 px-3 text-center">{isKr ? "승차 상태" : "登车"}</th>
+                                  <th className="py-2 px-3 text-center">{isKr ? "원터치 승차 버튼" : "登车操作"}</th>
                                   <th className="py-2 px-3 text-right">{isKr ? "관리 액션" : "操作"}</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-200/50 dark:divide-slate-800/50">
-                                {round.reservations.map((res) => (
-                                  <tr key={res.id} className="hover:bg-white dark:hover:bg-slate-800/40">
-                                    <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
-                                      {res.pickupLocation}
-                                    </td>
-                                    <td className="py-2.5 px-3 font-black text-slate-800 dark:text-slate-200">
-                                      {res.passengerName}
-                                    </td>
-                                    <td className="py-2.5 px-3 font-mono text-slate-500">
-                                      {res.phone}
-                                    </td>
-                                    <td className="py-2.5 px-3 text-center font-bold">
-                                      {res.passengerCount}명
-                                    </td>
-                                    <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
-                                      {res.dropoffLocation}
-                                    </td>
-                                    <td className="py-2.5 px-3 text-center">
-                                      <span
-                                        className={`px-2 py-0.5 rounded-md font-bold text-[11px] ${
-                                          res.paymentStatus === "paid"
-                                            ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
-                                            : "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300"
-                                        }`}
-                                      >
-                                        {res.paymentStatus === "paid" ? "완납" : "미납"}
-                                      </span>
-                                    </td>
-                                    <td className="py-2.5 px-3 text-center">
-                                      <span
-                                        className={`px-2 py-0.5 rounded-md font-bold text-[11px] ${
-                                          res.boardedStatus === "boarded"
-                                            ? "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300"
-                                            : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                                        }`}
-                                      >
-                                        {res.boardedStatus === "boarded" ? "승차 완료" : "대기"}
-                                      </span>
-                                    </td>
-                                    <td className="py-2.5 px-3 text-right">
-                                      <div className="flex items-center justify-end gap-1">
+                                {round.reservations.map((res) => {
+                                  const isBoarded = res.boardedStatus === "boarded";
+                                  return (
+                                    <tr
+                                      key={res.id}
+                                      className={`transition-colors ${
+                                        isBoarded
+                                          ? "bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                          : "hover:bg-white dark:hover:bg-slate-800/40"
+                                      }`}
+                                    >
+                                      <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 text-[11px] font-black">
+                                          {res.pickupLocation}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5 px-3 font-black text-slate-800 dark:text-slate-200">
+                                        <span className={isBoarded ? "line-through text-slate-400" : ""}>
+                                          {res.passengerName}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5 px-3 font-mono text-slate-500">
+                                        {res.phone}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-center font-bold">
+                                        {res.passengerCount}명
+                                      </td>
+                                      <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
+                                        {res.dropoffLocation}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-center">
+                                        <span
+                                          className={`px-2 py-0.5 rounded-md font-bold text-[11px] ${
+                                            res.paymentStatus === "paid"
+                                              ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
+                                              : "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300"
+                                          }`}
+                                        >
+                                          {res.paymentStatus === "paid" ? "완납" : "미납"}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5 px-3 text-center">
+                                        {/* 원터치 [승차 완료 / 승차] 토글 버튼 */}
                                         <button
                                           type="button"
-                                          onClick={() => openEditReservationModal(res)}
-                                          className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white"
-                                          title={isKr ? "예약 수정" : "修改"}
+                                          disabled={isPending}
+                                          onClick={() => handleToggleBoarded(res.id)}
+                                          className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-xs transition-all squishy-btn border shadow-2xs cursor-pointer ${
+                                            isBoarded
+                                              ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
+                                              : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                          }`}
+                                          title={
+                                            isBoarded
+                                              ? "클릭 시 승차 취소 (대기 상태로 변경)"
+                                              : "클릭 시 즉시 승차 완료 처리"
+                                          }
                                         >
-                                          <Pencil className="h-3.5 w-3.5" />
+                                          <Check className={`h-3.5 w-3.5 ${isBoarded ? "text-white stroke-[3]" : "text-emerald-600"}`} />
+                                          <span>{isBoarded ? "승차 완료" : "승차"}</span>
                                         </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setDeleteTargetReservation(res)}
-                                          className="p-1 rounded-md text-rose-400 hover:text-rose-600"
-                                          title={isKr ? "예약 삭제" : "删除"}
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => openEditReservationModal(res)}
+                                            className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                                            title={isKr ? "예약 수정" : "修改"}
+                                          >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setDeleteTargetReservation(res)}
+                                            className="p-1 rounded-md text-rose-400 hover:text-rose-600"
+                                            title={isKr ? "예약 삭제" : "删除"}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           )}
