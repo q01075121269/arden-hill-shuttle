@@ -27,16 +27,31 @@ export interface OperationReservationItem {
   updatedAt: string;
 }
 
-// 2. 일일 회차 요약 인터페이스
+// 2. 일일 회차 요약 인터페이스 (우발상황 수동 변경 지원)
 export interface OperationRoundSummary {
   direction: "outbound" | "inbound";
   roundNumber: number;
   timeText: string;
   totalPax: number; // 총 예약 인원
   boardedPax: number; // 실제 승차 완료 인원
-  allocatedVehicleType: "carnival" | "county"; // 5인 이하 카니발, 6인 이상 카운티
+  allocatedVehicleType: "carnival" | "county" | "large_bus"; // 5인 이하 카니발, 6인 이상 카운티, 대형 버스
   vehiclePlate: string;
   reservations: OperationReservationItem[];
+  isManualOverride?: boolean; // 관리자 수동 지정 여부
+  overrideReason?: string; // 우발상황 사유 (예: 차량 고장, 항공기 연착, 단체 증편 등)
+  isCustomAdded?: boolean; // 관리자가 임시로 추가한 회차 여부
+}
+
+// 회차 커스텀 설정 인터페이스
+export interface CustomRoundConfig {
+  direction: "outbound" | "inbound";
+  roundNumber: number;
+  timeText: string;
+  allocatedVehicleType: "carnival" | "county" | "large_bus";
+  vehiclePlate: string;
+  isManualOverride?: boolean;
+  overrideReason?: string;
+  isCustomAdded?: boolean;
 }
 
 // 3. 기사 5대 안전점검 결과 인터페이스
@@ -70,7 +85,7 @@ const reservationAdminSchema = z.object({
   id: z.string().optional(),
   date: z.string().min(10, "올바른 날짜를 선택해주세요."),
   direction: z.enum(["outbound", "inbound"]),
-  roundNumber: z.number().int().min(1).max(6),
+  roundNumber: z.number().int().min(1),
   timeText: z.string().min(4),
   pickupLocation: z.string().min(1, "승차 위치를 입력해주세요."),
   dropoffLocation: z.string().min(1, "하차 희망지를 입력해주세요."),
@@ -88,6 +103,39 @@ export type ReservationAdminInput = z.input<typeof reservationAdminSchema>;
 // 회차 기본 시간표 템플릿
 const OUTBOUND_TIMES = ["08:10", "10:30", "12:30", "15:00", "18:20", "20:00"];
 const INBOUND_TIMES = ["09:30", "11:30", "13:30", "16:20", "19:10"];
+
+// 날짜별 회차 커스텀 설정 저장소 (Key: YYYY-MM-DD)
+let GLOBAL_DAILY_ROUNDS_CONFIG: Record<
+  string,
+  {
+    outbound: CustomRoundConfig[];
+    inbound: CustomRoundConfig[];
+  }
+> = {};
+
+function initDailyRoundsConfigIfEmpty(date: string) {
+  if (!GLOBAL_DAILY_ROUNDS_CONFIG[date]) {
+    GLOBAL_DAILY_ROUNDS_CONFIG[date] = {
+      outbound: OUTBOUND_TIMES.map((time, idx) => ({
+        direction: "outbound" as const,
+        roundNumber: idx + 1,
+        timeText: time,
+        allocatedVehicleType: "carnival" as const,
+        vehiclePlate: "제주 70가 1142 (카니발)",
+        isManualOverride: false,
+      })),
+      inbound: INBOUND_TIMES.map((time, idx) => ({
+        direction: "inbound" as const,
+        roundNumber: idx + 1,
+        timeText: time,
+        allocatedVehicleType: "carnival" as const,
+        vehiclePlate: "제주 70가 1142 (카니발)",
+        isManualOverride: false,
+      })),
+    };
+  }
+  return GLOBAL_DAILY_ROUNDS_CONFIG[date];
+}
 
 // 초기 대체 경유지 캘린더 맵 (Key: YYYY-MM-DD, Value: 경유지명)
 let GLOBAL_ALTERNATIVE_ROUTES: Record<string, string> = {
@@ -284,56 +332,76 @@ export async function getDailyOperationDataAction(
     (r) => r.date === dateStr && r.isActive
   );
 
-  // 하행 1~6회차 집계
-  const outboundRounds: OperationRoundSummary[] = OUTBOUND_TIMES.map((time, idx) => {
-    const roundNum = idx + 1;
+  const roundsConfig = initDailyRoundsConfigIfEmpty(dateStr);
+
+  // 하행 회차 집계
+  const outboundRounds: OperationRoundSummary[] = roundsConfig.outbound.map((cfg) => {
     const rList = dayReservations.filter(
-      (r) => r.direction === "outbound" && r.roundNumber === roundNum
+      (r) => r.direction === "outbound" && r.roundNumber === cfg.roundNumber
     );
     const totalPax = rList.reduce((sum, r) => sum + r.passengerCount, 0);
     const boardedPax = rList
       .filter((r) => r.boardedStatus === "boarded")
       .reduce((sum, r) => sum + r.passengerCount, 0);
-    // 탄력 배차: 5인 이하 카니발, 6인 이상 카운티
-    const allocatedVehicleType = totalPax <= 5 ? "carnival" : "county";
-    const vehiclePlate =
-      allocatedVehicleType === "carnival" ? "제주 70가 1142 (카니발)" : "제주 72바 5501 (카운티)";
+
+    // 수동 지정 여부에 따른 차량 배정 (수동 지정 없으면 탄력 배차)
+    let vehicleType = cfg.allocatedVehicleType;
+    let vehiclePlate = cfg.vehiclePlate;
+    if (!cfg.isManualOverride) {
+      vehicleType = totalPax <= 5 ? "carnival" : "county";
+      vehiclePlate =
+        vehicleType === "carnival"
+          ? "제주 70가 1142 (카니발)"
+          : "제주 72바 5501 (카운티)";
+    }
 
     return {
-      direction: "outbound",
-      roundNumber: roundNum,
-      timeText: time,
+      direction: "outbound" as const,
+      roundNumber: cfg.roundNumber,
+      timeText: cfg.timeText,
       totalPax,
       boardedPax,
-      allocatedVehicleType,
+      allocatedVehicleType: vehicleType,
       vehiclePlate,
       reservations: rList,
+      isManualOverride: cfg.isManualOverride,
+      overrideReason: cfg.overrideReason,
+      isCustomAdded: cfg.isCustomAdded,
     };
   });
 
-  // 상행 1~5회차 집계
-  const inboundRounds: OperationRoundSummary[] = INBOUND_TIMES.map((time, idx) => {
-    const roundNum = idx + 1;
+  // 상행 회차 집계
+  const inboundRounds: OperationRoundSummary[] = roundsConfig.inbound.map((cfg) => {
     const rList = dayReservations.filter(
-      (r) => r.direction === "inbound" && r.roundNumber === roundNum
+      (r) => r.direction === "inbound" && r.roundNumber === cfg.roundNumber
     );
     const totalPax = rList.reduce((sum, r) => sum + r.passengerCount, 0);
     const boardedPax = rList
       .filter((r) => r.boardedStatus === "boarded")
       .reduce((sum, r) => sum + r.passengerCount, 0);
-    const allocatedVehicleType = totalPax <= 5 ? "carnival" : "county";
-    const vehiclePlate =
-      allocatedVehicleType === "carnival" ? "제주 70가 1142 (카니발)" : "제주 72바 5501 (카운티)";
+
+    let vehicleType = cfg.allocatedVehicleType;
+    let vehiclePlate = cfg.vehiclePlate;
+    if (!cfg.isManualOverride) {
+      vehicleType = totalPax <= 5 ? "carnival" : "county";
+      vehiclePlate =
+        vehicleType === "carnival"
+          ? "제주 70가 1142 (카니발)"
+          : "제주 72바 5501 (카운티)";
+    }
 
     return {
-      direction: "inbound",
-      roundNumber: roundNum,
-      timeText: time,
+      direction: "inbound" as const,
+      roundNumber: cfg.roundNumber,
+      timeText: cfg.timeText,
       totalPax,
       boardedPax,
-      allocatedVehicleType,
+      allocatedVehicleType: vehicleType,
       vehiclePlate,
       reservations: rList,
+      isManualOverride: cfg.isManualOverride,
+      overrideReason: cfg.overrideReason,
+      isCustomAdded: cfg.isCustomAdded,
     };
   });
 
@@ -594,9 +662,221 @@ export async function getMonthlyRouteScheduleAction(
   };
 }
 
+/**
+ * 6. 우발상황 대응: 특정 회차의 출발 시간, 차종, 차량번호, 사유 수정 (updateOperationRoundAction)
+ */
+export interface UpdateRoundInput {
+  date: string;
+  direction: "outbound" | "inbound";
+  roundNumber: number;
+  timeText: string;
+  allocatedVehicleType: "carnival" | "county" | "large_bus";
+  vehiclePlate?: string;
+  overrideReason?: string;
+}
+
+export async function updateOperationRoundAction(
+  input: UpdateRoundInput
+): Promise<AdminActionResult<{ daily: DailyOperationData }>> {
+  if (!input.date || !input.direction || !input.roundNumber) {
+    return { success: false, error: "회차 정보가 올바르지 않습니다." };
+  }
+
+  const roundsConfig = initDailyRoundsConfigIfEmpty(input.date);
+  const targetList = input.direction === "outbound" ? roundsConfig.outbound : roundsConfig.inbound;
+  const target = targetList.find((r) => r.roundNumber === input.roundNumber);
+
+  if (!target) {
+    return { success: false, error: "해당 회차를 찾을 수 없습니다." };
+  }
+
+  const prevSnapshot = { ...target };
+
+  // 값 업데이트
+  if (input.timeText) target.timeText = input.timeText;
+  if (input.allocatedVehicleType) target.allocatedVehicleType = input.allocatedVehicleType;
+  if (input.vehiclePlate) {
+    target.vehiclePlate = input.vehiclePlate;
+  } else {
+    if (input.allocatedVehicleType === "carnival") target.vehiclePlate = "제주 70가 1142 (카니발)";
+    else if (input.allocatedVehicleType === "county") target.vehiclePlate = "제주 72바 5501 (카운티)";
+    else target.vehiclePlate = "제주 75바 8820 (45인승 대형)";
+  }
+  target.isManualOverride = true;
+  target.overrideReason = input.overrideReason || "관리자 우발상황 수동 변경";
+
+  // 해당 회차에 예약된 승객들의 출발 시간도 함께 갱신
+  GLOBAL_OPERATIONS_RESERVATIONS.forEach((r) => {
+    if (r.date === input.date && r.direction === input.direction && r.roundNumber === input.roundNumber) {
+      r.timeText = target.timeText;
+      r.updatedAt = new Date().toISOString();
+    }
+  });
+
+  // 감사 로그 기록
+  const auditLog: AuditLogItem = {
+    id: `AUDIT-${Date.now()}`,
+    action: "UPDATE_ROUND" as any,
+    entity: "shuttle_rounds" as any,
+    entityId: `${input.date}-${input.direction}-${input.roundNumber}`,
+    actor: "Admin-Manager",
+    previousData: prevSnapshot,
+    newData: target,
+    timestamp: new Date().toISOString(),
+  };
+  GLOBAL_OPERATIONS_AUDIT.unshift(auditLog);
+
+  const dailyRes = await getDailyOperationDataAction(input.date);
+  if (!dailyRes.success) {
+    return { success: false, error: dailyRes.error };
+  }
+
+  return {
+    success: true,
+    data: { daily: dailyRes.data },
+    message: `${input.roundNumber}회차 운행 정보(시간: ${target.timeText}, 차종: ${target.allocatedVehicleType})가 성공적으로 수정되었습니다.`,
+  };
+}
+
+/**
+ * 7. 우발상황 대응: 임시/비상 증편 회차 추가 (addOperationRoundAction)
+ */
+export interface AddRoundInput {
+  date: string;
+  direction: "outbound" | "inbound";
+  timeText: string;
+  allocatedVehicleType: "carnival" | "county" | "large_bus";
+  vehiclePlate?: string;
+  overrideReason?: string;
+}
+
+export async function addOperationRoundAction(
+  input: AddRoundInput
+): Promise<AdminActionResult<{ daily: DailyOperationData; addedRoundNumber: number }>> {
+  if (!input.date || !input.direction || !input.timeText) {
+    return { success: false, error: "날짜, 방향 및 출발 시간을 입력해주세요." };
+  }
+
+  const roundsConfig = initDailyRoundsConfigIfEmpty(input.date);
+  const targetList = input.direction === "outbound" ? roundsConfig.outbound : roundsConfig.inbound;
+
+  // 다음 회차 번호 계산
+  const maxRoundNum = targetList.reduce((max, r) => Math.max(max, r.roundNumber), 0);
+  const nextRoundNumber = maxRoundNum + 1;
+
+  let plate = input.vehiclePlate;
+  if (!plate) {
+    if (input.allocatedVehicleType === "carnival") plate = "제주 70가 1142 (카니발)";
+    else if (input.allocatedVehicleType === "county") plate = "제주 72바 5501 (카운티)";
+    else plate = "제주 75바 8820 (45인승 대형)";
+  }
+
+  const newRound: CustomRoundConfig = {
+    direction: input.direction,
+    roundNumber: nextRoundNumber,
+    timeText: input.timeText,
+    allocatedVehicleType: input.allocatedVehicleType || "carnival",
+    vehiclePlate: plate,
+    isManualOverride: true,
+    overrideReason: input.overrideReason || "우발상황/단체 긴급 증편 회차",
+    isCustomAdded: true,
+  };
+
+  targetList.push(newRound);
+
+  // 감사 로그 기록
+  const auditLog: AuditLogItem = {
+    id: `AUDIT-${Date.now()}`,
+    action: "ADD_ROUND" as any,
+    entity: "shuttle_rounds" as any,
+    entityId: `${input.date}-${input.direction}-${nextRoundNumber}`,
+    actor: "Admin-Manager",
+    previousData: null,
+    newData: newRound,
+    timestamp: new Date().toISOString(),
+  };
+  GLOBAL_OPERATIONS_AUDIT.unshift(auditLog);
+
+  const dailyRes = await getDailyOperationDataAction(input.date);
+  if (!dailyRes.success) {
+    return { success: false, error: dailyRes.error };
+  }
+
+  return {
+    success: true,
+    data: {
+      daily: dailyRes.data,
+      addedRoundNumber: nextRoundNumber,
+    },
+    message: `[${input.direction === "outbound" ? "하행" : "상행"}] ${nextRoundNumber}회차(${input.timeText}) 증편 운행이 추가되었습니다.`,
+  };
+}
+
+/**
+ * 8. 우발상황 대응: 특정 회차 삭제 / 운행 취소 (deleteOperationRoundAction)
+ */
+export interface DeleteRoundInput {
+  date: string;
+  direction: "outbound" | "inbound";
+  roundNumber: number;
+}
+
+export async function deleteOperationRoundAction(
+  input: DeleteRoundInput
+): Promise<AdminActionResult<{ daily: DailyOperationData }>> {
+  if (!input.date || !input.direction || !input.roundNumber) {
+    return { success: false, error: "삭제할 회차 정보가 누락되었습니다." };
+  }
+
+  const roundsConfig = initDailyRoundsConfigIfEmpty(input.date);
+
+  if (input.direction === "outbound") {
+    roundsConfig.outbound = roundsConfig.outbound.filter((r) => r.roundNumber !== input.roundNumber);
+  } else {
+    roundsConfig.inbound = roundsConfig.inbound.filter((r) => r.roundNumber !== input.roundNumber);
+  }
+
+  // 해당 회차에 예약이 있던 승객들도 취소(비활성화) 처리
+  GLOBAL_OPERATIONS_RESERVATIONS.forEach((r) => {
+    if (r.date === input.date && r.direction === input.direction && r.roundNumber === input.roundNumber) {
+      r.isActive = false;
+      r.notes = (r.notes || "") + " [회차 운행 취소로 인한 자동 취소]";
+      r.updatedAt = new Date().toISOString();
+    }
+  });
+
+  // 감사 로그 기록
+  const auditLog: AuditLogItem = {
+    id: `AUDIT-${Date.now()}`,
+    action: "DELETE_ROUND" as any,
+    entity: "shuttle_rounds" as any,
+    entityId: `${input.date}-${input.direction}-${input.roundNumber}`,
+    actor: "Admin-Manager",
+    previousData: { roundNumber: input.roundNumber },
+    newData: null,
+    timestamp: new Date().toISOString(),
+  };
+  GLOBAL_OPERATIONS_AUDIT.unshift(auditLog);
+
+  const dailyRes = await getDailyOperationDataAction(input.date);
+  if (!dailyRes.success) {
+    return { success: false, error: dailyRes.error };
+  }
+
+  return {
+    success: true,
+    data: { daily: dailyRes.data },
+    message: `${input.direction === "outbound" ? "하행" : "상행"} ${input.roundNumber}회차 운행이 취소/삭제되었습니다.`,
+  };
+}
+
 // 명세서 호환용 별칭 Export
 export const getDailyOperationData = getDailyOperationDataAction;
 export const upsertReservationByAdmin = upsertReservationByAdminAction;
 export const deleteReservationByAdmin = deleteReservationByAdminAction;
 export const setAlternativeRoute = setAlternativeRouteAction;
 export const getMonthlyRouteSchedule = getMonthlyRouteScheduleAction;
+export const updateOperationRound = updateOperationRoundAction;
+export const addOperationRound = addOperationRoundAction;
+export const deleteOperationRound = deleteOperationRoundAction;
+

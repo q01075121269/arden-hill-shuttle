@@ -29,6 +29,7 @@ import {
   ShieldAlert,
   ArrowRight,
   Sparkles,
+  Settings2,
 } from "lucide-react";
 import { Language } from "@/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -55,6 +56,9 @@ import {
   deleteReservationByAdminAction,
   setAlternativeRouteAction,
   toggleReservationBoardedAction,
+  updateOperationRoundAction,
+  addOperationRoundAction,
+  deleteOperationRoundAction,
   type DailyOperationData,
   type OperationRoundSummary,
   type OperationReservationItem,
@@ -119,6 +123,112 @@ export function AdminMobileDashboard() {
   // 1. [운행·예약] 상태
   const [operationsData, setOperationsData] = useState<DailyOperationData | null>(null);
   const [directionFilter, setDirectionFilter] = useState<"all" | "outbound" | "inbound">("all");
+
+  // [우발상황] 모바일 회차 수정/추가/삭제 상태 및 핸들러
+  const [mobileEditRound, setMobileEditRound] = useState<{
+    direction: "outbound" | "inbound";
+    roundNumber: number;
+    timeText: string;
+    allocatedVehicleType: "carnival" | "county" | "large_bus";
+    vehiclePlate: string;
+    overrideReason: string;
+  } | null>(null);
+
+  const [isMobileAddRoundModalOpen, setIsMobileAddRoundModalOpen] = useState(false);
+  const [mobileAddRoundForm, setMobileAddRoundForm] = useState<{
+    direction: "outbound" | "inbound";
+    timeText: string;
+    allocatedVehicleType: "carnival" | "county" | "large_bus";
+    vehiclePlate: string;
+    overrideReason: string;
+  }>({
+    direction: "outbound",
+    timeText: "21:30",
+    allocatedVehicleType: "carnival",
+    vehiclePlate: "제주 70가 1142 (카니발)",
+    overrideReason: "우발상황/비상 임시 증편",
+  });
+
+  const [mobileDeleteRound, setMobileDeleteRound] = useState<OperationRoundSummary | null>(null);
+
+  const openMobileEditRoundModal = (round: OperationRoundSummary) => {
+    setMobileEditRound({
+      direction: round.direction,
+      roundNumber: round.roundNumber,
+      timeText: round.timeText,
+      allocatedVehicleType: round.allocatedVehicleType,
+      vehiclePlate: round.vehiclePlate,
+      overrideReason: round.overrideReason || "",
+    });
+  };
+
+  const handleMobileSaveRoundEdit = (
+    timeText: string,
+    allocatedVehicleType: "carnival" | "county" | "large_bus",
+    vehiclePlate: string,
+    overrideReason: string
+  ) => {
+    if (!mobileEditRound) return;
+    startTransition(async () => {
+      const res = await updateOperationRoundAction({
+        date: selectedDate,
+        direction: mobileEditRound.direction,
+        roundNumber: mobileEditRound.roundNumber,
+        timeText,
+        allocatedVehicleType,
+        vehiclePlate,
+        overrideReason,
+      });
+      if (res.success) {
+        setOperationsData(res.data.daily);
+        setMobileEditRound(null);
+      } else {
+        alert(res.error || "회차 수정에 실패했습니다.");
+      }
+    });
+  };
+
+  const handleMobileSaveNewRound = (
+    direction: "outbound" | "inbound",
+    timeText: string,
+    allocatedVehicleType: "carnival" | "county" | "large_bus",
+    vehiclePlate: string,
+    overrideReason: string
+  ) => {
+    startTransition(async () => {
+      const res = await addOperationRoundAction({
+        date: selectedDate,
+        direction,
+        timeText,
+        allocatedVehicleType,
+        vehiclePlate,
+        overrideReason,
+      });
+      if (res.success) {
+        setOperationsData(res.data.daily);
+        setIsMobileAddRoundModalOpen(false);
+      } else {
+        alert(res.error || "임시 회차 추가에 실패했습니다.");
+      }
+    });
+  };
+
+  const handleMobileConfirmDeleteRound = () => {
+    if (!mobileDeleteRound) return;
+    startTransition(async () => {
+      const res = await deleteOperationRoundAction({
+        date: selectedDate,
+        direction: mobileDeleteRound.direction,
+        roundNumber: mobileDeleteRound.roundNumber,
+      });
+      if (res.success) {
+        setOperationsData(res.data.daily);
+        setMobileDeleteRound(null);
+      } else {
+        alert(res.error || "회차 삭제에 실패했습니다.");
+      }
+    });
+  };
 
   // 2. [입주민] 상태
   const [residents, setResidents] = useState<ResidentItem[]>([]);
@@ -520,6 +630,20 @@ export function AdminMobileDashboard() {
 
             {/* 회차별 요약 카드 리스트 */}
             <div className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-bold text-slate-500">
+                  운행 회차 ({displayedRounds.length}개)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileAddRoundModalOpen(true)}
+                  className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-1 shadow-xs squishy-btn"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>+ 임시 회차 증편</span>
+                </button>
+              </div>
+
               {displayedRounds.length === 0 ? (
                 <div className="py-8 text-center text-xs text-slate-400 font-bold bg-white dark:bg-[#151D2A] rounded-2xl border border-slate-200 dark:border-slate-800">
                   선택한 일자의 회차 정보가 없습니다.
@@ -529,7 +653,8 @@ export function AdminMobileDashboard() {
                   const roundKey = `${round.direction}-${round.roundNumber}`;
                   const isExpanded = expandedRoundKey === roundKey;
                   const isOutbound = round.direction === "outbound";
-                  const isCounty = round.totalPax >= 6;
+                  const isCounty = round.allocatedVehicleType === "county";
+                  const isLargeBus = round.allocatedVehicleType === "large_bus";
                   return (
                     <div
                       key={roundKey}
@@ -545,7 +670,7 @@ export function AdminMobileDashboard() {
                         className="p-3 cursor-pointer squishy-btn"
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-wrap">
                             <span
                               className={`px-2 py-0.5 rounded-md text-[10px] font-black shrink-0 ${
                                 isOutbound
@@ -559,19 +684,32 @@ export function AdminMobileDashboard() {
                               <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                               {round.timeText} 출발
                             </span>
+
+                            {round.isManualOverride && (
+                              <span className="px-1.5 py-0.2 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[9px] font-bold border border-indigo-200 dark:border-indigo-800">
+                                우발 지정
+                              </span>
+                            )}
+                            {round.isCustomAdded && (
+                              <span className="px-1.5 py-0.2 rounded-md bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 text-[9px] font-bold border border-amber-200 dark:border-amber-800">
+                                ⚡ 임시증편
+                              </span>
+                            )}
                           </div>
 
-                          {/* 탄력 배차 배지 & 아코디언 아이콘 */}
+                          {/* 차종 배지 & 아코디언 아이콘 */}
                           <div className="flex items-center gap-1.5 shrink-0">
                             <span
                               className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${
-                                isCounty
+                                isLargeBus
+                                  ? "bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300"
+                                  : isCounty
                                   ? "bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300"
                                   : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                               }`}
                             >
-                              {isCounty ? <Bus className="h-3 w-3" /> : <Car className="h-3 w-3" />}
-                              {isCounty ? "29인승 카운티" : "카니발"}
+                              {isLargeBus ? <Bus className="h-3 w-3" /> : isCounty ? <Bus className="h-3 w-3" /> : <Car className="h-3 w-3" />}
+                              {isLargeBus ? "45인승 대형" : isCounty ? "29인승 카운티" : "카니발"}
                             </span>
                             <div className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500">
                               {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -598,21 +736,53 @@ export function AdminMobileDashboard() {
                           ========================================================================= */}
                       {isExpanded && (
                         <div className="p-3 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 space-y-2.5 animate-in slide-in-from-top-1 duration-150">
-                          <div className="flex items-center justify-between">
+                          {/* 탑승자 명단 헤더 + 우발상황 관리 버튼들 */}
+                          <div className="flex items-center justify-between flex-wrap gap-1.5 pb-2 border-b border-slate-200/60 dark:border-slate-800">
                             <span className="text-xs font-black text-slate-800 dark:text-slate-200">
                               탑승자 명단 ({round.reservations.length}개 팀)
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedRoundForPax(round);
-                                setIsAddRsvModalOpen(true);
-                              }}
-                              className="px-2 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[10px] flex items-center gap-1 squishy-btn"
-                            >
-                              <Plus className="h-3 w-3" />
-                              <span>예약 수기 추가</span>
-                            </button>
+                            <div className="flex items-center gap-1">
+                              {/* 1. 시간·차종 변경 버튼 */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openMobileEditRoundModal(round);
+                                }}
+                                className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-300 font-bold text-[10px] flex items-center gap-1 border border-slate-200 dark:border-slate-700 squishy-btn"
+                                title="출발 시간 및 차종 우발상황 수정"
+                              >
+                                <Settings2 className="h-3 w-3 text-slate-500" />
+                                <span>시간·차종 변경</span>
+                              </button>
+
+                              {/* 2. 예약 수기 추가 버튼 */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedRoundForPax(round);
+                                  setIsAddRsvModalOpen(true);
+                                }}
+                                className="px-2 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[10px] flex items-center gap-1 squishy-btn"
+                              >
+                                <Plus className="h-3 w-3" />
+                                <span>예약 추가</span>
+                              </button>
+
+                              {/* 3. 회차 삭제 버튼 */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMobileDeleteRound(round);
+                                }}
+                                className="p-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 squishy-btn"
+                                title="회차 운행 취소/삭제"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
                           </div>
 
                           {round.reservations.length === 0 ? (
@@ -1747,6 +1917,297 @@ export function AdminMobileDashboard() {
         title="관리자 기동 관제를 종료하시겠습니까?"
         lang={lang}
       />
+
+      {/* =========================================================================
+          10. 모바일 모달: 회차 시간 및 차종 변경 (우발상황)
+      ========================================================================= */}
+      {mobileEditRound && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                  우발상황 대응
+                </span>
+                <h3 className="text-base font-black text-slate-800 dark:text-white mt-1">
+                  {mobileEditRound.roundNumber}회차 시간 및 차종 변경
+                </h3>
+              </div>
+              <button
+                onClick={() => setMobileEditRound(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 mb-4 leading-relaxed">
+              기상 악화, 차량 고장, 항공기 연착 등으로 인한 시간 지연이나 차종(카니발 ↔ 버스) 변경 시 즉시 수정할 수 있습니다.
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const newTime = (form.elements.namedItem("time") as HTMLInputElement).value;
+                const vehicleType = (form.elements.namedItem("vehicleType") as HTMLSelectElement).value as any;
+                const vehiclePlate = (form.elements.namedItem("vehiclePlate") as HTMLInputElement).value;
+                const overrideReason = (form.elements.namedItem("overrideReason") as HTMLInputElement).value;
+                handleMobileSaveRoundEdit(newTime, vehicleType, vehiclePlate, overrideReason);
+              }}
+              className="space-y-3.5 text-xs font-semibold"
+            >
+              <div>
+                <label className="text-slate-600 dark:text-slate-300 block mb-1">
+                  출발 시각 <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="time"
+                  name="time"
+                  defaultValue={mobileEditRound.timeText}
+                  required
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-600 dark:text-slate-300 block mb-1">
+                  운영 차종 선택 <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  name="vehicleType"
+                  defaultValue={mobileEditRound.allocatedVehicleType || "carnival"}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold"
+                >
+                  <option value="carnival">카니발 리무진 (최대 7인승 - 소규모 정숙 운행)</option>
+                  <option value="county">29인승 카운티 버스 (최대 20인승 예약 운행)</option>
+                  <option value="large_bus">45인승 대형 우등 버스 (최대 40인승 단체 운행)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-600 dark:text-slate-300 block mb-1">
+                  차량 번호 / 식별명
+                </label>
+                <input
+                  type="text"
+                  name="vehiclePlate"
+                  defaultValue={mobileEditRound.vehiclePlate || ""}
+                  placeholder="예: 제주 70가 1142 또는 아덴힐 1호차"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-600 dark:text-slate-300 block mb-1">
+                  변경 사유 (기록 보관용) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="overrideReason"
+                  defaultValue={mobileEditRound.overrideReason || ""}
+                  placeholder="예: 폭설 기상악화로 45인승 대형 긴급 교체, 항공기 지연 20분 연기"
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMobileEditRound(null)}
+                  className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="flex-1 py-3 rounded-xl bg-amber-600 text-white font-black shadow-md hover:bg-amber-700"
+                >
+                  {isPending ? "반영 중..." : "변경 내용 저장"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          11. 모바일 모달: 임시 증편 회차 추가
+      ========================================================================= */}
+      {isMobileAddRoundModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                  임시 증편
+                </span>
+                <h3 className="text-base font-black text-slate-800 dark:text-white mt-1">
+                  임시/우발 회차 증편 추가
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsMobileAddRoundModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 mb-4 leading-relaxed">
+              입주민 골프 단체 승객이나 공항 집중 시간대에 당일 즉시 투입할 셔틀 회차를 추가합니다.
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const direction = (form.elements.namedItem("direction") as HTMLSelectElement).value as "outbound" | "inbound";
+                const time = (form.elements.namedItem("time") as HTMLInputElement).value;
+                const vehicleType = (form.elements.namedItem("vehicleType") as HTMLSelectElement).value as any;
+                const vehiclePlate = (form.elements.namedItem("vehiclePlate") as HTMLInputElement).value;
+                const overrideReason = (form.elements.namedItem("overrideReason") as HTMLInputElement).value;
+                handleMobileSaveNewRound(direction, time, vehicleType, vehiclePlate, overrideReason);
+              }}
+              className="space-y-3.5 text-xs font-semibold"
+            >
+              <div>
+                <label className="text-slate-600 dark:text-slate-300 block mb-1">
+                  운행 방향 <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  name="direction"
+                  defaultValue="outbound"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold"
+                >
+                  <option value="outbound">하행 (리조트 단지 ➔ 제주공항)</option>
+                  <option value="inbound">상행 (제주공항 ➔ 리조트 단지)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-600 dark:text-slate-300 block mb-1">
+                  출발 시각 <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="time"
+                  name="time"
+                  required
+                  defaultValue="14:00"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-600 dark:text-slate-300 block mb-1">
+                  운영 차종 선택 <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  name="vehicleType"
+                  defaultValue="carnival"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold"
+                >
+                  <option value="carnival">카니발 리무진 (최대 7인승 - 소규모 정숙 운행)</option>
+                  <option value="county">29인승 카운티 버스 (최대 20인승 예약 운행)</option>
+                  <option value="large_bus">45인승 대형 우등 버스 (최대 40인승 단체 운행)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-600 dark:text-slate-300 block mb-1">
+                  차량 번호 / 식별명
+                </label>
+                <input
+                  type="text"
+                  name="vehiclePlate"
+                  defaultValue="제주 70가 1142 (카니발)"
+                  placeholder="예: 제주 70가 1142 또는 아덴힐 증편1호"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-600 dark:text-slate-300 block mb-1">
+                  증편 사유 <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="overrideReason"
+                  placeholder="예: 주말 입주자 골프 모임 요청으로 임시 증편"
+                  defaultValue="주말 혼잡으로 임시 증편 운행"
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileAddRoundModalOpen(false)}
+                  className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-black shadow-md hover:bg-emerald-700"
+                >
+                  {isPending ? "추가 중..." : "+ 임시 회차 생성"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          12. 모바일 모달: 회차 삭제 / 운행 취소 확인
+      ========================================================================= */}
+      {mobileDeleteRound && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto text-xl mb-3">
+                ⚠️
+              </div>
+              <h3 className="text-base font-black text-slate-800 dark:text-white">
+                {mobileDeleteRound.roundNumber}회차 운행 취소 및 삭제
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                출발 시간: <strong className="text-slate-800 dark:text-slate-200">{mobileDeleteRound.timeText}</strong>
+                <br />
+                정말로 이 회차를 오늘 운행 계획에서 삭제하시겠습니까?
+              </p>
+              {mobileDeleteRound.totalPax > 0 && (
+                <div className="mt-3 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs text-left">
+                  ⚠️ <strong>주의:</strong> 현재 이 회차에 <span className="font-bold underline">{mobileDeleteRound.totalPax}명</span>의 예약 승객이 있습니다. 삭제 시 승객 예약도 자동으로 취소 처리됩니다.
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMobileDeleteRound(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs"
+              >
+                닫기 (유지)
+              </button>
+              <button
+                type="button"
+                onClick={handleMobileConfirmDeleteRound}
+                disabled={isPending}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-xs shadow-md hover:bg-rose-700"
+              >
+                {isPending ? "삭제 중..." : "회차 삭제 확정"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
