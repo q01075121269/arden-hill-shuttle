@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
-import { Printer } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Printer, Download, Image as ImageIcon, FileText, CheckCircle2 } from "lucide-react";
 import { Language } from "@/types";
 import { DailyOperationData } from "@/app/actions/admin-operations";
+import { exportElementToImage, exportElementToPdf } from "@/lib/export-utils";
 
 interface DailyLogPrintProps {
   lang: Language;
@@ -19,6 +20,46 @@ export function DailyLogPrint({
   onPrint,
 }: DailyLogPrintProps) {
   const isKr = lang === "KR";
+  const paperRef = useRef<HTMLDivElement>(null);
+  const [isExportingImage, setIsExportingImage] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+
+  const handleExportImage = async () => {
+    if (!paperRef.current) return;
+    setIsExportingImage(true);
+    try {
+      await exportElementToImage(
+        paperRef.current,
+        `${date}_아덴힐_셔틀버스_일일운행일지.png`,
+        { scale: 2 }
+      );
+      setExportNotice(isKr ? "일일운행일지가 이미지(PNG)로 저장되었습니다." : "运行日志已保存为图片。");
+      setTimeout(() => setExportNotice(null), 3000);
+    } catch (e) {
+      alert(isKr ? "이미지 저장에 실패했습니다." : "保存图片失败。");
+    } finally {
+      setIsExportingImage(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!paperRef.current) return;
+    setIsExportingPdf(true);
+    try {
+      await exportElementToPdf(
+        paperRef.current,
+        `${date}_아덴힐_셔틀버스_일일운행일지.pdf`,
+        { orientation: "portrait" }
+      );
+      setExportNotice(isKr ? "일일운행일지가 PDF 문서로 저장되었습니다." : "运行日志已导出为PDF文件。");
+      setTimeout(() => setExportNotice(null), 3000);
+    } catch (e) {
+      alert(isKr ? "PDF 저장에 실패했습니다." : "导出PDF失败。");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
 
   // 기본 더미 데이터 (data prop이 없을 경우 대비)
   const defaultOutbound = [
@@ -151,20 +192,60 @@ export function DailyLogPrint({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handlePrint}
-          className="min-h-[48px] px-7 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm squishy-btn shadow-md shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer shrink-0"
-        >
-          <Printer className="h-4 w-4" />
-          <span>{isKr ? "공식 일일 운행일지 A4 인쇄 / PDF 저장" : "A4 打印 / 导出 PDF"}</span>
-        </button>
+        {/* 출력 및 저장 액션 버튼 그룹 */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* 1. 이미지(PNG) 저장 버튼 */}
+          <button
+            type="button"
+            onClick={handleExportImage}
+            disabled={isExportingImage || isExportingPdf}
+            className="min-h-[44px] px-4 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs sm:text-sm squishy-btn shadow-md shadow-sky-600/25 flex items-center justify-center gap-2 cursor-pointer transition-all"
+            title="일일운행일지를 PNG 이미지 파일로 저장"
+          >
+            <ImageIcon className="h-4 w-4" />
+            <span>{isExportingImage ? "이미지 생성 중..." : isKr ? "💾 이미지(PNG) 저장" : "保存为图片 (PNG)"}</span>
+          </button>
+
+          {/* 2. PDF 파일 직접 다운로드 저장 버튼 */}
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={isExportingImage || isExportingPdf}
+            className="min-h-[44px] px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm squishy-btn shadow-md shadow-indigo-600/25 flex items-center justify-center gap-2 cursor-pointer transition-all"
+            title="일일운행일지를 A4 PDF 문서 파일로 저장"
+          >
+            <FileText className="h-4 w-4" />
+            <span>{isExportingPdf ? "PDF 생성 중..." : isKr ? "📄 PDF 파일 저장" : "导出 PDF 文件"}</span>
+          </button>
+
+          {/* 3. A4 종이 인쇄 버튼 */}
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="min-h-[44px] px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm squishy-btn shadow-md shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer transition-all"
+            title="프린터 출력 또는 브라우저 PDF 인쇄"
+          >
+            <Printer className="h-4 w-4" />
+            <span>{isKr ? "🖨️ A4 종이 인쇄" : "A4 打印"}</span>
+          </button>
+        </div>
       </div>
+
+      {/* 저장 완료 알림 토스트 (no-print) */}
+      {exportNotice && (
+        <div className="no-print mb-4 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span>{exportNotice}</span>
+        </div>
+      )}
 
       {/* 
         2. 원본 종이 서식 컨테이너 (A4 Portrait 규격 1:1 정밀 구현)
       */}
-      <div className="printable-paper mx-auto w-full max-w-[210mm] bg-white text-black p-5 sm:p-7 border-2 border-black shadow-xl rounded-none space-y-3 font-sans">
+      <div
+        ref={paperRef}
+        className="printable-paper mx-auto w-full max-w-[210mm] bg-white text-black p-5 sm:p-7 border-2 border-black shadow-xl rounded-none space-y-3 font-sans"
+      >
         {/* 상단 제목 및 결재 서명 테이블 */}
         <div className="flex items-start justify-between border-b-2 border-black pb-2.5">
           <div className="space-y-0.5">

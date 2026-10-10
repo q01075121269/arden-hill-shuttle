@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useTransition, useRef } from "react";
 import {
   Calendar,
   Clock,
@@ -25,6 +25,8 @@ import {
   Settings2,
   Sliders,
   ShieldAlert,
+  Image as ImageIcon,
+  Download,
 } from "lucide-react";
 import { Language } from "@/types";
 import {
@@ -42,6 +44,7 @@ import {
   type OperationReservationItem,
 } from "@/app/actions/admin-operations";
 import { DailyLogPrint } from "@/components/admin/DailyLogPrint";
+import { exportElementToImage } from "@/lib/export-utils";
 
 interface OperationScheduleManagerProps {
   lang: Language;
@@ -57,6 +60,12 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
   // 1. 날짜 상태 (기본값: 오늘 2026-10-09)
   const [selectedDate, setSelectedDate] = useState<string>("2026-10-09");
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // 이미지 저장용 Refs 및 로딩 상태
+  const dailyScheduleRef = useRef<HTMLDivElement>(null);
+  const monthlyScheduleRef = useRef<HTMLDivElement>(null);
+  const [isExportingDailyImage, setIsExportingDailyImage] = useState(false);
+  const [isExportingMonthlyImage, setIsExportingMonthlyImage] = useState(false);
 
   // 2. 일일 운행 데이터 상태
   const [dailyData, setDailyData] = useState<DailyOperationData | null>(null);
@@ -438,6 +447,59 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
     });
   };
 
+  // =========================================================================
+  // 이미지 저장 핸들러 (일일운영계획표 / 월간운행계획표)
+  // =========================================================================
+  const handleExportDailyImage = async () => {
+    if (!dailyScheduleRef.current) return;
+    setIsExportingDailyImage(true);
+    try {
+      await exportElementToImage(
+        dailyScheduleRef.current,
+        `${selectedDate}_아덴힐_일일운영시간계획표.png`,
+        { scale: 2, backgroundColor: "#ffffff" }
+      );
+      setFeedback({
+        type: "success",
+        text: isKr
+          ? `${selectedDate} 일일운영시간계획표가 이미지(PNG)로 저장되었습니다.`
+          : "日运营时间计划表已保存为图片。",
+      });
+    } catch (e) {
+      setFeedback({
+        type: "error",
+        text: isKr ? "계획표 이미지 저장에 실패했습니다." : "保存图片失败。",
+      });
+    } finally {
+      setIsExportingDailyImage(false);
+    }
+  };
+
+  const handleExportMonthlyImage = async () => {
+    if (!monthlyScheduleRef.current) return;
+    setIsExportingMonthlyImage(true);
+    try {
+      await exportElementToImage(
+        monthlyScheduleRef.current,
+        `2026-10_아덴힐_월간운행계획표.png`,
+        { scale: 2, backgroundColor: "#ffffff" }
+      );
+      setFeedback({
+        type: "success",
+        text: isKr
+          ? "2026년 10월 월간운행계획표가 이미지(PNG)로 저장되었습니다."
+          : "月度运行计划表已保存为图片。",
+      });
+    } catch (e) {
+      setFeedback({
+        type: "error",
+        text: isKr ? "월간 계획표 이미지 저장에 실패했습니다." : "保存图片失败。",
+      });
+    } finally {
+      setIsExportingMonthlyImage(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in pb-16">
       {/* 상단 알림 배너 */}
@@ -576,19 +638,63 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
               </div>
             </div>
 
-            {/* 우측 상단 대형 고대비 A4 인쇄 버튼 */}
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-600/25 transition-all squishy-btn shrink-0"
-            >
-              <Printer className="h-5 w-5" />
-              <span>{isKr ? "🖨️ 공식 일일 운행일지 A4 인쇄 / PDF 저장" : "🖨️ 打印标准A4日志 / 导出PDF"}</span>
-            </button>
+            {/* 우측 상단 액션 버튼 그룹 */}
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {/* 일일 계획표 이미지 저장 버튼 */}
+              <button
+                type="button"
+                onClick={handleExportDailyImage}
+                disabled={isExportingDailyImage}
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs sm:text-sm shadow-md shadow-sky-600/25 transition-all squishy-btn shrink-0 cursor-pointer"
+                title="오늘의 운행시간표와 회차 배차 현황을 이미지 파일(PNG)로 저장"
+              >
+                <ImageIcon className="h-4 w-4" />
+                <span>{isExportingDailyImage ? "이미지 생성 중..." : isKr ? "📷 일일계획표 이미지 저장" : "保存为日时间表图片"}</span>
+              </button>
+
+              {/* 공식 일일 운행일지 A4 인쇄 / 파일 저장 안내 버튼 */}
+              <button
+                type="button"
+                onClick={() => {
+                  const printSection = document.querySelector('.printable-paper');
+                  if (printSection) {
+                    printSection.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    window.print();
+                  }
+                }}
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-600/25 transition-all squishy-btn shrink-0 cursor-pointer"
+                title="하단 공식 A4 운행일지 서식 보기, 인쇄 및 파일 저장"
+              >
+                <Printer className="h-4 w-4" />
+                <span>{isKr ? "🖨️ 공식 일일 운행일지 출력 / 저장" : "🖨️ 打印标准A4日志 / 导出"}</span>
+              </button>
+            </div>
           </div>
 
-          {/* (2) 양방향 1일 시간표 & 회차별 승객 인라인 CRUD (no-print) */}
-          <div className="no-print space-y-6">
+          {/* (2) 양방향 1일 시간표 & 회차별 승객 인라인 CRUD (이미지 저장 영역: dailyScheduleRef) */}
+          <div ref={dailyScheduleRef} className="no-print space-y-6 bg-slate-50/60 dark:bg-transparent p-2 sm:p-3 rounded-3xl">
+            {/* 캡처 시 이미지 상단에 나타나는 브랜딩 헤더 바 */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#111622] border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl p-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+                  <img src="/images/logo-symbol.png" alt="로고" className="h-full w-full object-contain" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    아덴힐 리조트 셔틀버스 일일운영시간계획표
+                  </h3>
+                  <p className="text-xs text-slate-500 font-semibold">
+                    운행일자: <strong>{selectedDate}</strong> | 오늘의 경유지: <strong>{dailyData?.stopoverName || "이마트 (정상 운행)"}</strong>
+                  </p>
+                </div>
+              </div>
+              <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-500">
+                <span>총 하행 {dailyData?.totalOutboundPax || 0}명</span>
+                <span>•</span>
+                <span>총 상행 {dailyData?.totalInboundPax || 0}명</span>
+              </div>
+            </div>
             {/* 섹션 1: 아덴힐 ➔ 제주공항 방면 (하행 1~6회차) */}
             <div className="bg-white dark:bg-[#111622] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -1123,28 +1229,42 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
       ========================================================================= */}
       {subTab === "monthly" && (
         <div className="space-y-6">
-          <div className="bg-white dark:bg-[#111622] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+          <div ref={monthlyScheduleRef} className="bg-white dark:bg-[#111622] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
                 <Calendar className="h-5 w-5 text-sky-500" />
                 <div>
                   <h3 className="text-base font-black text-slate-900 dark:text-white">
-                    {isKr ? "2026년 10월 노선 경유지 캘린더" : "2026年10月 经停路线日历"}
+                    {isKr ? "2026년 10월 아덴힐 셔틀 노선 경유지 캘린더" : "2026年10月 经停路线日历"}
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
                     대형마트 의무 휴무일(둘째/넷째 주 일요일 등) 클릭 시 대체 시장으로 원클릭 스위칭됩니다.
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-400">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  이마트 (기본)
-                </span>
-                <span className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-400">
-                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                  대체 경유지
-                </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-400">
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    이마트 (기본)
+                  </span>
+                  <span className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-400">
+                    <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                    대체 경유지
+                  </span>
+                </div>
+
+                {/* 월간 계획표 이미지 저장 버튼 */}
+                <button
+                  type="button"
+                  onClick={handleExportMonthlyImage}
+                  disabled={isExportingMonthlyImage}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs shadow-md shadow-sky-600/25 transition-all squishy-btn shrink-0 cursor-pointer"
+                  title="2026년 10월 노선 경유지 계획표를 이미지 파일(PNG)로 저장"
+                >
+                  <ImageIcon className="h-4 w-4" />
+                  <span>{isExportingMonthlyImage ? "이미지 생성 중..." : isKr ? "📷 월간계획표 이미지 저장" : "保存为月计划表图片"}</span>
+                </button>
               </div>
             </div>
 

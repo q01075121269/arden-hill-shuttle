@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useTransition, useMemo } from "react";
+import React, { useState, useEffect, useTransition, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
   Bus,
@@ -30,6 +30,7 @@ import {
   ArrowRight,
   Sparkles,
   Settings2,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Language } from "@/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -38,6 +39,7 @@ import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { useMobileBackHandler } from "@/hooks/useMobileBackHandler";
 import { ExitConfirmModal } from "@/components/common/ExitConfirmModal";
 import { NoticePublisherModal } from "@/components/admin/NoticePublisherModal";
+import { exportElementToImage } from "@/lib/export-utils";
 
 // Auth Actions & Types
 import {
@@ -93,6 +95,10 @@ export function AdminMobileDashboard() {
 
   // 날짜 선택기
   const [selectedDate, setSelectedDate] = useState<string>("2026-10-09");
+
+  // 모바일 이미지 저장용 Ref 및 상태
+  const mobileScheduleContainerRef = useRef<HTMLDivElement>(null);
+  const [isExportingMobileImage, setIsExportingMobileImage] = useState(false);
 
   // 모달 상태들
   const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
@@ -358,6 +364,24 @@ export function AdminMobileDashboard() {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() + offsetDays);
     setSelectedDate(d.toISOString().slice(0, 10));
+  };
+
+  // 모바일 계획표 이미지 저장 핸들러
+  const handleExportMobileImage = async () => {
+    if (!mobileScheduleContainerRef.current) return;
+    setIsExportingMobileImage(true);
+    try {
+      await exportElementToImage(
+        mobileScheduleContainerRef.current,
+        `${selectedDate}_아덴힐_모바일_일일운영시간계획표.png`,
+        { scale: 2, backgroundColor: "#ffffff" }
+      );
+      alert("일일운영계획표가 이미지 파일(PNG)로 저장되었습니다.");
+    } catch (e) {
+      alert("이미지 저장에 실패했습니다.");
+    } finally {
+      setIsExportingMobileImage(false);
+    }
   };
 
   // 경유지 즉시 변경
@@ -628,20 +652,35 @@ export function AdminMobileDashboard() {
               </button>
             </div>
 
-            {/* 회차별 요약 카드 리스트 */}
-            <div className="space-y-2">
+            {/* 회차별 요약 카드 리스트 (이미지 저장 영역) */}
+            <div ref={mobileScheduleContainerRef} className="space-y-2 bg-slate-50/50 dark:bg-transparent p-1 rounded-2xl">
               <div className="flex items-center justify-between px-1">
                 <span className="text-xs font-bold text-slate-500">
                   운행 회차 ({displayedRounds.length}개)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setIsMobileAddRoundModalOpen(true)}
-                  className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-1 shadow-xs squishy-btn"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>+ 임시 회차 증편</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {/* 모바일 이미지 저장 버튼 */}
+                  <button
+                    type="button"
+                    onClick={handleExportMobileImage}
+                    disabled={isExportingMobileImage}
+                    className="px-2 py-1 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs flex items-center gap-1 shadow-xs squishy-btn cursor-pointer"
+                    title="일일 운행 계획표를 이미지(PNG)로 저장"
+                  >
+                    <ImageIcon className="h-3.5 w-3.5" />
+                    <span>{isExportingMobileImage ? "저장 중..." : "📷 이미지 저장"}</span>
+                  </button>
+
+                  {/* 임시 회차 증편 버튼 */}
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileAddRoundModalOpen(true)}
+                    className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-1 shadow-xs squishy-btn cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>+ 임시 회차 증편</span>
+                  </button>
+                </div>
               </div>
 
               {displayedRounds.length === 0 ? (
