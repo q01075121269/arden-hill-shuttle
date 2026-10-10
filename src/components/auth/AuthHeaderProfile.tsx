@@ -106,13 +106,15 @@ export function AuthHeaderProfile({
         building,
       });
       if (res.success) {
-        setCurrentUser(res.data);
-        setSuccessMessage(res.message || "가입 신청이 완료되었습니다.");
-        if (onLoginSuccess) onLoginSuccess(res.data);
+        // ※ 가입 신청 완료 시 자동 로그인을 시키지 않고, 승인 대기 안내를 보여줌
+        setSuccessMessage("✅ 회원가입 신청이 정상 접수되었습니다! 아덴힐 관리실(064-793-0000) 확인 및 승인 후 로그인하실 수 있습니다.");
+        setName("");
+        setPin("");
+        setBuilding("");
+        // 3초 후 로그인 탭으로 전환하여 대기 안내
         setTimeout(() => {
-          setIsModalOpen(false);
-          setSuccessMessage("");
-        }, 1200);
+          setModalTab("login");
+        }, 3000);
       } else {
         setErrorMessage(res.error);
       }
@@ -172,25 +174,26 @@ export function AuthHeaderProfile({
       )}
 
       {/* =========================================================================
-          인증 모달 팝업
+          인증 모달 팝업 (모바일 화면 최상위 z-[9999] 배치 & 안전 스크롤)
       ========================================================================= */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 pt-16 pb-8 overflow-y-auto overscroll-none">
-          <div className="w-full max-w-sm bg-white dark:bg-[#151D2A] rounded-3xl p-5 shadow-2xl border border-slate-200/90 dark:border-slate-800 space-y-4 my-auto animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto overscroll-none">
+          <div className="w-full max-w-sm max-h-[92dvh] overflow-y-auto overscroll-contain bg-white dark:bg-[#151D2A] rounded-3xl p-5 shadow-2xl border border-slate-200/90 dark:border-slate-800 space-y-3.5 my-auto animate-in fade-in zoom-in-95 duration-150">
             {/* 상단 닫기 */}
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-[#151D2A] z-10">
               <div className="flex items-center gap-2">
                 <div className="h-7 w-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs">
                   <User className="h-4 w-4" />
                 </div>
                 <span className="font-black text-sm text-slate-900 dark:text-slate-100">
-                  {currentUser ? "내 계정 정보" : modalTab === "login" ? "간편 로그인" : "회원가입 신청"}
+                  {currentUser ? "내 계정 정보" : modalTab === "login" ? "입주민 간편 로그인" : "신규 회원가입 신청"}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                aria-label="닫기"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -198,13 +201,13 @@ export function AuthHeaderProfile({
 
             {/* 상태 알림 배너 */}
             {errorMessage && (
-              <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold">
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/70 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold leading-relaxed">
                 {errorMessage}
               </div>
             )}
             {successMessage && (
-              <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold leading-relaxed flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>{successMessage}</span>
               </div>
             )}
@@ -354,43 +357,47 @@ export function AuthHeaderProfile({
                   </form>
                 ) : (
                   /* 탭 B: 회원가입 신청 폼 */
-                  <form onSubmit={handleRegister} className="space-y-2.5 text-xs font-bold">
+                  <form onSubmit={handleRegister} className="space-y-3 text-xs font-bold">
+                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/60 text-[11px] text-amber-800 dark:text-amber-300 font-medium leading-relaxed">
+                      💡 <strong>입주민 인증 안내</strong>: 안전한 셔틀 운영을 위해 가입 신청 후 관리실에서 확인하여 승인해 드립니다. 승인 완료 후 로그인하실 수 있습니다.
+                    </div>
+
                     <div>
-                      <label className="text-slate-600 dark:text-slate-400">성명 (이름)</label>
+                      <label className="text-slate-600 dark:text-slate-400">성명 (입주민 성함)</label>
                       <input
                         type="text"
                         required
                         placeholder="예: 홍길동"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 mt-0.5 focus:outline-none focus:border-emerald-500"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 focus:outline-none focus:border-emerald-500"
                       />
                     </div>
 
                     <div>
-                      <label className="text-slate-600 dark:text-slate-400">휴대폰 번호</label>
+                      <label className="text-slate-600 dark:text-slate-400">휴대폰 번호 (로그인 ID 겸용)</label>
                       <input
                         type="tel"
                         required
                         placeholder="010-0000-0000"
                         value={phone}
                         onChange={(e) => handlePhoneChange(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 mt-0.5 focus:outline-none focus:border-emerald-500"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 focus:outline-none focus:border-emerald-500"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-slate-600 dark:text-slate-400">비밀번호(4자리 PIN)</label>
+                        <label className="text-slate-600 dark:text-slate-400">간편 비밀번호(4자리)</label>
                         <input
                           type="password"
                           inputMode="numeric"
                           maxLength={4}
                           required
-                          placeholder="••••"
+                          placeholder="숫자 4자리"
                           value={pin}
                           onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
-                          className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-base font-bold text-center tracking-widest text-slate-900 dark:text-slate-100 mt-0.5 focus:outline-none focus:border-emerald-500"
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-base font-black text-center tracking-widest text-slate-900 dark:text-slate-100 mt-0.5 focus:outline-none focus:border-emerald-500"
                         />
                       </div>
                       <div>
@@ -401,7 +408,7 @@ export function AuthHeaderProfile({
                           placeholder="예: 112동"
                           value={building}
                           onChange={(e) => setBuilding(e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 mt-0.5 focus:outline-none focus:border-emerald-500"
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 focus:outline-none focus:border-emerald-500"
                         />
                       </div>
                     </div>
@@ -409,9 +416,9 @@ export function AuthHeaderProfile({
                     <button
                       type="submit"
                       disabled={isPending}
-                      className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center justify-center gap-1.5 squishy-btn shadow-xs cursor-pointer transition-colors mt-2"
+                      className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center justify-center gap-1.5 squishy-btn shadow-xs cursor-pointer transition-colors mt-2"
                     >
-                      {isPending ? "신청 등록 중..." : "회원가입 신청 완료"}
+                      {isPending ? "신청 접수 중..." : "회원가입 신청 접수하기"}
                     </button>
                   </form>
                 )}

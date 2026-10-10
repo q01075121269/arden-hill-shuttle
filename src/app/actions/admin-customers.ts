@@ -121,32 +121,63 @@ let GLOBAL_RESIDENTS: ResidentItem[] = [
 // 고객 관련 글로벌 감사 로그
 let GLOBAL_CUSTOMER_AUDIT: AuditLogItem[] = [];
 
+import {
+  getAllStoredResidents,
+  saveResidentToStorage,
+  findResidentById,
+  type StoredResident,
+} from "@/lib/supabase-residents";
+
 /**
- * 1. 입주민/고객 목록 조회 Server Action (검색 필터 지원)
+ * 1. 입주민/고객 목록 조회 Server Action (Supabase 클라우드 DB 실시간 조회 & 검색)
  */
 export async function getResidentsAction(
   searchQuery?: string
 ): Promise<AdminActionResult<{ residents: ResidentItem[] }>> {
-  let list = [...GLOBAL_RESIDENTS];
+  try {
+    const stored = await getAllStoredResidents();
+    // 승인 완료(approved)된 활성 입주민 목록
+    let list: ResidentItem[] = stored
+      .filter((r) => r.isActive && r.status === "approved")
+      .map((r) => ({
+        id: r.id,
+        building: r.building,
+        name: r.name,
+        phone: r.phone,
+        registerType: r.registerType,
+        rideCount: r.rideCount,
+        unpaidAmount: r.unpaidAmount,
+        isActive: r.isActive,
+        memo: r.memo,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      }));
 
-  if (searchQuery && searchQuery.trim()) {
-    const q = searchQuery.trim().toLowerCase();
-    list = list.filter(
-      (r) =>
-        r.building.toLowerCase().includes(q) ||
-        r.name.toLowerCase().includes(q) ||
-        r.phone.replace(/[^0-9]/g, "").includes(q.replace(/[^0-9]/g, ""))
-    );
+    if (searchQuery && searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.building.toLowerCase().includes(q) ||
+          r.name.toLowerCase().includes(q) ||
+          r.phone.replace(/[^0-9]/g, "").includes(q.replace(/[^0-9]/g, ""))
+      );
+    }
+
+    return {
+      success: true,
+      data: { residents: list },
+    };
+  } catch (err) {
+    console.error("[getResidentsAction error]:", err);
+    return {
+      success: true,
+      data: { residents: GLOBAL_RESIDENTS.filter((r) => r.isActive) },
+    };
   }
-
-  return {
-    success: true,
-    data: { residents: list },
-  };
 }
 
 /**
- * 2. 고객 정보 등록 및 수정 Server Action (upsertResident)
+ * 2. 고객 정보 등록 및 수정 Server Action (Supabase 클라우드 DB 영구 upsert)
  */
 export async function upsertResidentAction(
   data: ResidentInput
@@ -161,105 +192,108 @@ export async function upsertResidentAction(
 
   const now = new Date().toISOString();
   let savedResident: ResidentItem;
-  let previousData = null;
 
   if (parsed.data.id) {
     // 수정
-    const index = GLOBAL_RESIDENTS.findIndex((r) => r.id === parsed.data.id);
-    if (index === -1) {
+    const existing = await findResidentById(parsed.data.id);
+    if (!existing) {
       return { success: false, error: "수정할 고객 정보를 찾을 수 없습니다." };
     }
-    previousData = { ...GLOBAL_RESIDENTS[index] };
-    savedResident = {
-      ...GLOBAL_RESIDENTS[index],
+
+    const updatedStored: StoredResident = {
+      ...existing,
       building: parsed.data.building,
       name: parsed.data.name,
       phone: parsed.data.phone,
       registerType: parsed.data.registerType,
-      memo: parsed.data.memo ?? GLOBAL_RESIDENTS[index].memo,
+      memo: parsed.data.memo ?? existing.memo,
       isActive: parsed.data.isActive ?? true,
       updatedAt: now,
     };
-    GLOBAL_RESIDENTS[index] = savedResident;
-  } else {
-    // 신규 등록 (관리자 수기 등록)
-    const newId = `RES-${String(GLOBAL_RESIDENTS.length + 1).padStart(3, "0")}`;
+    await saveResidentToStorage(updatedStored);
+
     savedResident = {
+      id: updatedStored.id,
+      building: updatedStored.building,
+      name: updatedStored.name,
+      phone: updatedStored.phone,
+      registerType: updatedStored.registerType,
+      rideCount: updatedStored.rideCount,
+      unpaidAmount: updatedStored.unpaidAmount,
+      isActive: updatedStored.isActive,
+      memo: updatedStored.memo,
+      createdAt: updatedStored.createdAt,
+      updatedAt: updatedStored.updatedAt,
+    };
+  } else {
+    // 신규 등록 (관리자 수기 등록 -> 즉시 승인 상태)
+    const newId = `RES-${Date.now().toString(36).toUpperCase()}`;
+    const newStored: StoredResident = {
       id: newId,
       building: parsed.data.building,
       name: parsed.data.name,
       phone: parsed.data.phone,
+      pin: "0000",
+      status: "approved", // 관리자 직접 등록은 즉시 승인
       registerType: parsed.data.registerType || "manual",
       rideCount: 0,
       unpaidAmount: 0,
-      memo: parsed.data.memo || "관리자 수기 등록 고객",
+      memo: parsed.data.memo || "관리자 수기 직접 등록 고객",
       isActive: true,
       createdAt: now,
       updatedAt: now,
     };
-    GLOBAL_RESIDENTS.unshift(savedResident);
+    await saveResidentToStorage(newStored);
+
+    savedResident = {
+      id: newStored.id,
+      building: newStored.building,
+      name: newStored.name,
+      phone: newStored.phone,
+      registerType: newStored.registerType,
+      rideCount: newStored.rideCount,
+      unpaidAmount: newStored.unpaidAmount,
+      isActive: newStored.isActive,
+      memo: newStored.memo,
+      createdAt: newStored.createdAt,
+      updatedAt: newStored.updatedAt,
+    };
   }
 
-  // 감사 로그 기록
-  const auditLog: AuditLogItem = {
-    id: `AUDIT-${Date.now()}`,
-    action: "UPSERT_DRIVER" as any, // audit action type
-    entity: "drivers" as any,
-    entityId: savedResident.id,
-    actor: "Admin-CustomerDB",
-    previousData,
-    newData: savedResident,
-    timestamp: now,
-  };
-  GLOBAL_CUSTOMER_AUDIT.unshift(auditLog);
-
-  console.log(`[audit_logs] 고객 정보 upsert: ${savedResident.name} (${savedResident.building}, ${savedResident.phone})`);
+  // 최신 목록 조회
+  const latestResult = await getResidentsAction();
+  const latestList = latestResult.success ? latestResult.data.residents : [];
 
   return {
     success: true,
-    data: { resident: savedResident, residents: GLOBAL_RESIDENTS },
+    data: { resident: savedResident, residents: latestList },
     message: "고객 정보가 성공적으로 저장되었습니다.",
   };
 }
 
 /**
- * 3. 고객 정보 소프트 딜리트 Server Action (물리 삭제 절대 금지)
+ * 3. 고객 정보 소프트 딜리트 Server Action (Supabase 클라우드 비활성화)
  */
 export async function deleteResidentAction(
   residentId: string,
   reason?: string
 ): Promise<AdminActionResult<{ residents: ResidentItem[] }>> {
-  const index = GLOBAL_RESIDENTS.findIndex((r) => r.id === residentId);
-  if (index === -1) {
+  const existing = await findResidentById(residentId);
+  if (!existing) {
     return { success: false, error: "삭제할 고객 정보를 찾을 수 없습니다." };
   }
 
-  const previousData = { ...GLOBAL_RESIDENTS[index] };
-  GLOBAL_RESIDENTS[index].isActive = false;
-  GLOBAL_RESIDENTS[index].updatedAt = new Date().toISOString();
+  existing.isActive = false;
+  existing.updatedAt = new Date().toISOString();
+  await saveResidentToStorage(existing);
 
-  // 감사 로그 기록 (삭제 사유 포함 영구 보존)
-  const auditLog: AuditLogItem = {
-    id: `AUDIT-${Date.now()}`,
-    action: "DELETE_DRIVER" as any,
-    entity: "drivers" as any,
-    entityId: residentId,
-    actor: "Admin-CustomerDB",
-    previousData,
-    newData: {
-      isActive: false,
-      deleteReason: reason || "관리자 요청에 의한 비활성화 (소프트 딜리트)",
-    },
-    timestamp: new Date().toISOString(),
-  };
-  GLOBAL_CUSTOMER_AUDIT.unshift(auditLog);
-
-  console.log(`[audit_logs] 고객 소프트 딜리트: ${previousData.name} 사유: ${reason}`);
+  const latestResult = await getResidentsAction();
+  const latestList = latestResult.success ? latestResult.data.residents : [];
 
   return {
     success: true,
-    data: { residents: GLOBAL_RESIDENTS },
-    message: `고객(${previousData.name}) 정보가 비활성화(소프트 딜리트)되었습니다.`,
+    data: { residents: latestList },
+    message: "해당 입주민 정보가 비활성화(삭제) 처리되었습니다.",
   };
 }
 

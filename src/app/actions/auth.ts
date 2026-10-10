@@ -3,6 +3,15 @@
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { normalizePhone } from "@/lib/phone";
+import {
+  getAllStoredResidents,
+  saveResidentToStorage,
+  findResidentByPhone,
+  findResidentById,
+  approveResidentInStorage,
+  rejectResidentInStorage,
+  type StoredResident,
+} from "@/lib/supabase-residents";
 
 export type UserRole =
   | "super_admin" // 개발자 (Super Admin / Developer)
@@ -172,27 +181,51 @@ export async function registerResidentAction(data: {
     return { success: false, error: "거주 동수를 입력해주세요." };
   }
 
-  // 중복 가입 체크
-  const existing = GLOBAL_RESIDENT_ACCOUNTS.find((r) => r.phone === phone);
+  // 중복 가입 체크 (Supabase 클라우드 DB 기준)
+  const existing = await findResidentByPhone(phone);
   if (existing) {
-    return { success: false, error: "이미 가입 신청된 휴대폰 번호입니다. 로그인해 주세요." };
+    if (existing.status === "pending") {
+      return {
+        success: false,
+        error: "이미 가입 신청되어 관리실 승인 대기 중인 번호입니다. 관리자 승인을 기다려주세요.",
+      };
+    }
+    return { success: false, error: "이미 정식 가입된 휴대폰 번호입니다. 로그인해 주세요." };
   }
 
   const now = new Date().toISOString();
-  const newAccount: ResidentAccount = {
+  const newAccount: StoredResident = {
     id: `RES-${Date.now().toString(36).toUpperCase()}`,
     name,
     phone,
     pin,
     building,
-    status: "pending", // 관리자 승인 대기
+    status: "pending", // 관리자 승인 대기 상태
+    registerType: "self",
+    rideCount: 0,
+    unpaidAmount: 0,
+    memo: "고객용 모바일 웹 간편 가입 신청 (승인 대기)",
+    isActive: true,
     createdAt: now,
     updatedAt: now,
   };
 
-  GLOBAL_RESIDENT_ACCOUNTS.unshift(newAccount);
+  // 1. Supabase 클라우드 데이터베이스에 영구 저장
+  await saveResidentToStorage(newAccount);
 
-  console.log(`[audit_logs] 입주민 신규 가입 신청 접수: ${name} (${phone}, ${building}) - 승인 대기`);
+  // 2. 인메모리 캐시 동기화
+  GLOBAL_RESIDENT_ACCOUNTS.unshift({
+    id: newAccount.id,
+    name: newAccount.name,
+    phone: newAccount.phone,
+    pin: newAccount.pin,
+    building: newAccount.building,
+    status: newAccount.status,
+    createdAt: newAccount.createdAt,
+    updatedAt: newAccount.updatedAt,
+  });
+
+  console.log(`[audit_logs] 입주민 신규 가입 신청 접수 완료: ${name} (${phone}, ${building}) - 관리자 승인 대기 등록`);
 
   const authUser: AuthUser = {
     id: newAccount.id,
@@ -201,29 +234,21 @@ export async function registerResidentAction(data: {
     role: "resident",
     roleName: "입주민 승객",
     building: newAccount.building,
-    status: newAccount.status,
+    status: "pending",
     canApproveResident: false,
     canManageAllData: false,
   };
 
-  // 세션 쿠키 발급 (승인 대기 상태로 세션 유지)
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, JSON.stringify(authUser), {
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 30 * 24 * 60 * 60, // 30일
-  });
-
+  // ※ 주의: 회원가입 신청 시에는 자동 로그인을 시키지 않습니다! (관리자 승인 필수)
   return {
     success: true,
     data: authUser,
-    message: "회원가입 신청이 완료되었습니다. 관리자 승인 후 모든 편의 기능이 활성화됩니다.",
+    message: "가입 신청이 성공적으로 접수되었습니다. 관리실 승인 완료 후 로그인하실 수 있습니다.",
   };
 }
 
 /**
- * [입주민] 전화번호 + 4자리 숫자 PIN 로그인
+ * [입주민] 전화번호 + 4자리 숫자 PIN 로그인 (관리자 승인 필수 검증)
  */
 export async function loginWithPinAction(
   rawPhone: string,
@@ -236,13 +261,29 @@ export async function loginWithPinAction(
     return { success: false, error: "휴대폰 번호와 4자리 PIN을 모두 입력해주세요." };
   }
 
-  const resident = GLOBAL_RESIDENT_ACCOUNTS.find((r) => r.phone === phone);
+  // Supabase 클라우드 영구 저장소에서 계정 실시간 조회
+  const resident = await findResidentByPhone(phone);
   if (!resident) {
-    return { success: false, error: "등록되지 않은 휴대폰 번호입니다. 회원가입을 신청해주세요." };
+    return { success: false, error: "등록되지 않은 휴대폰 번호입니다. 회원가입 신청을 먼저 진행해 주세요." };
   }
 
   if (resident.pin !== pin) {
     return { success: false, error: "비밀번호(숫자 4자리 PIN)가 일치하지 않습니다." };
+  }
+
+  // ★ 핵심 검증: 관리자 승인 여부 체크
+  if (resident.status === "pending") {
+    return {
+      success: false,
+      error: "⚠️ 관리자 가입 승인 대기 중입니다. 관리사무실(064-793-0000)에서 입주민 확인 및 승인 후 로그인하실 수 있습니다.",
+    };
+  }
+
+  if (resident.status === "rejected") {
+    return {
+      success: false,
+      error: "가입 신청이 반려된 계정입니다. 자세한 사항은 관리사무실로 문의해 주세요.",
+    };
   }
 
   const authUser: AuthUser = {
@@ -252,12 +293,12 @@ export async function loginWithPinAction(
     role: "resident",
     roleName: "입주민 승객",
     building: resident.building,
-    status: resident.status,
+    status: "approved",
     canApproveResident: false,
     canManageAllData: false,
   };
 
-  // 30일 자동 로그인 쿠키 설정
+  // 승인 완료된 정회원만 30일 자동 로그인 세션 쿠키 발급
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, JSON.stringify(authUser), {
     path: "/",
@@ -266,12 +307,12 @@ export async function loginWithPinAction(
     maxAge: 30 * 24 * 60 * 60,
   });
 
-  console.log(`[audit_logs] 입주민 PIN 로그인 성공: ${resident.name} (${resident.phone})`);
+  console.log(`[audit_logs] 입주민 정식 로그인 성공: ${resident.name} (${resident.phone})`);
 
   return {
     success: true,
     data: authUser,
-    message: `${resident.name} 님, 환영합니다.`,
+    message: `${resident.name} 님, 반갑습니다! 안전하게 모시겠습니다.`,
   };
 }
 
@@ -366,6 +407,9 @@ export async function logoutUserAction(): Promise<AuthActionResult<null>> {
 /**
  * [개발자/관리과장 전용] 신규 입주민 가입 승인 (approveResident)
  */
+/**
+ * [개발자/관리과장 전용] 신규 입주민 가입 승인 (approveResident)
+ */
 export async function approveResidentAction(
   residentId: string
 ): Promise<AuthActionResult<ResidentAccount>> {
@@ -377,20 +421,36 @@ export async function approveResidentAction(
     };
   }
 
-  const resident = GLOBAL_RESIDENT_ACCOUNTS.find((r) => r.id === residentId);
-  if (!resident) {
+  // 1. Supabase 클라우드 DB에서 실시간 승인 처리
+  const updated = await approveResidentInStorage(residentId);
+  if (!updated) {
     return { success: false, error: "해당 신청자를 찾을 수 없습니다." };
   }
 
-  resident.status = "approved";
-  resident.updatedAt = new Date().toISOString();
+  // 2. 인메모리 캐시 동기화
+  const memoryItem = GLOBAL_RESIDENT_ACCOUNTS.find((r) => r.id === residentId);
+  if (memoryItem) {
+    memoryItem.status = "approved";
+    memoryItem.updatedAt = updated.updatedAt;
+  }
 
-  console.log(`[audit_logs] 입주민 가입 승인 처리: ${resident.name} (${resident.phone}) by ${currentUser.name}`);
+  console.log(`[audit_logs] 입주민 가입 승인 완료: ${updated.name} (${updated.phone}) by ${currentUser.name}`);
+
+  const resAcc: ResidentAccount = {
+    id: updated.id,
+    name: updated.name,
+    phone: updated.phone,
+    pin: updated.pin,
+    building: updated.building,
+    status: "approved",
+    createdAt: updated.createdAt,
+    updatedAt: updated.updatedAt,
+  };
 
   return {
     success: true,
-    data: resident,
-    message: `${resident.name} 님의 가입이 성공적으로 승인되었습니다.`,
+    data: resAcc,
+    message: `${updated.name} 님의 가입이 성공적으로 승인되었습니다.`,
   };
 }
 
@@ -408,33 +468,83 @@ export async function rejectResidentAction(
     };
   }
 
-  const resident = GLOBAL_RESIDENT_ACCOUNTS.find((r) => r.id === residentId);
-  if (!resident) {
+  // 1. Supabase 클라우드 DB에서 반려/비활성화 처리
+  const updated = await rejectResidentInStorage(residentId);
+  if (!updated) {
     return { success: false, error: "해당 신청자를 찾을 수 없습니다." };
   }
 
-  resident.status = "rejected";
-  resident.updatedAt = new Date().toISOString();
+  // 2. 인메모리 캐시 동기화
+  const memoryItem = GLOBAL_RESIDENT_ACCOUNTS.find((r) => r.id === residentId);
+  if (memoryItem) {
+    memoryItem.status = "rejected";
+    memoryItem.updatedAt = updated.updatedAt;
+  }
 
-  console.log(`[audit_logs] 입주민 가입 반려 처리: ${resident.name} (${resident.phone}) by ${currentUser.name}`);
+  console.log(`[audit_logs] 입주민 가입 반려 처리: ${updated.name} (${updated.phone}) by ${currentUser.name}`);
+
+  const resAcc: ResidentAccount = {
+    id: updated.id,
+    name: updated.name,
+    phone: updated.phone,
+    pin: updated.pin,
+    building: updated.building,
+    status: "rejected",
+    createdAt: updated.createdAt,
+    updatedAt: updated.updatedAt,
+  };
 
   return {
     success: true,
-    data: resident,
-    message: `${resident.name} 님의 가입이 반려되었습니다.`,
+    data: resAcc,
+    message: `${updated.name} 님의 가입 신청이 반려되었습니다.`,
   };
 }
 
 /**
- * [관리자용] 승인 대기 입주민 목록 조회
+ * [관리자용] 승인 대기 입주민 목록 실시간 조회 (Supabase 클라우드 DB 연동)
  */
 export async function getPendingResidentsAction(): Promise<ResidentAccount[]> {
-  return GLOBAL_RESIDENT_ACCOUNTS.filter((r) => r.status === "pending");
+  try {
+    const all = await getAllStoredResidents();
+    return all
+      .filter((r) => r.status === "pending" && r.isActive)
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        phone: r.phone,
+        pin: r.pin,
+        building: r.building,
+        status: r.status,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      }));
+  } catch (err) {
+    console.error("[getPendingResidentsAction error]:", err);
+    return GLOBAL_RESIDENT_ACCOUNTS.filter((r) => r.status === "pending");
+  }
 }
 
 /**
- * [관리자용] 전체 입주민 계정 목록 조회
+ * [관리자용] 전체 입주민 계정 목록 실시간 조회 (Supabase 클라우드 DB 연동)
  */
 export async function getAllResidentAccountsAction(): Promise<ResidentAccount[]> {
-  return GLOBAL_RESIDENT_ACCOUNTS;
+  try {
+    const all = await getAllStoredResidents();
+    return all
+      .filter((r) => r.isActive)
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        phone: r.phone,
+        pin: r.pin,
+        building: r.building,
+        status: r.status,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      }));
+  } catch (err) {
+    console.error("[getAllResidentAccountsAction error]:", err);
+    return GLOBAL_RESIDENT_ACCOUNTS;
+  }
 }
