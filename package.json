@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node -r ./patch-node.js ./node_modules/next/dist/bin/next dev",
-    "build": "node -r ./patch-node.js ./node_modules/next/dist/bin/next build",
-    "start": "node -r ./patch-node.js ./node_modules/next/dist/bin/next start"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
