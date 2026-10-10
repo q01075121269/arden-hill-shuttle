@@ -25,6 +25,7 @@ import { VersionReleaseModal } from "@/components/VersionReleaseModal";
 import { ExitConfirmModal } from "@/components/common/ExitConfirmModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthHeaderProfile } from "@/components/auth/AuthHeaderProfile";
+import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { useMobileBackHandler } from "@/hooks/useMobileBackHandler";
 import { EMERGENCY_CONTACTS } from "@/lib/constants";
 
@@ -144,7 +145,7 @@ export function DriverDashboard() {
           </span>
         </div>
 
-        {/* 우측: [긴급 차량/운행 알림] 버튼 + [테마 토글] */}
+        {/* 우측: [긴급 차량/운행 알림] 버튼 + [앱 설치] + [테마 토글] */}
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
@@ -155,6 +156,8 @@ export function DriverDashboard() {
             <AlertOctagon className="h-4 w-4 text-rose-600" />
             <span className="whitespace-nowrap">긴급 알림</span>
           </button>
+          <InstallAppButton appName="아덴힐 기사용 관제앱" variant="header" className="hidden sm:flex" />
+          <InstallAppButton appName="아덴힐 기사용 관제앱" variant="compact" className="sm:hidden" />
           <ThemeToggle />
           <AuthHeaderProfile />
         </div>

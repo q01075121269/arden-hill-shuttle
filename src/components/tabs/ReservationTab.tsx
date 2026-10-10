@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import {
   Calendar,
   Clock,
@@ -16,6 +16,7 @@ import {
   ArrowRightLeft,
   X,
   UserCheck,
+  BellRing,
 } from "lucide-react";
 import { Language, Reservation } from "@/types";
 import {
@@ -23,6 +24,7 @@ import {
   EMERGENCY_CONTACTS,
   I18N,
 } from "@/lib/constants";
+import { BoardingImminentAlertModal } from "@/components/passenger/BoardingImminentAlertModal";
 import {
   createReservationAction,
   updateReservationAction,
@@ -103,6 +105,14 @@ export function ReservationTab({
   const [editPickup, setEditPickup] = useState("");
   const [editDropoff, setEditDropoff] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
+
+  // ============================================================================
+  // 5분 전 탑승 임박 알림 모달 상태
+  // ============================================================================
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [alertTargetReservation, setAlertTargetReservation] = useState<Reservation | null>(null);
+  const [alertRemainingMinutes, setAlertRemainingMinutes] = useState(5);
+  const [hasAlertedIds, setHasAlertedIds] = useState<string[]>([]);
 
   // 모달 뒤로 가기 히스토리 동기화
   React.useEffect(() => {
@@ -310,6 +320,46 @@ export function ReservationTab({
     }
   };
 
+  // 5분 전 실시간 탑승 감지 타이머 (30초 주기로 남은 시간 자동 체크)
+  useEffect(() => {
+    const check5Minutes = () => {
+      if (!activeReservation) return;
+      if (hasAlertedIds.includes(activeReservation.id)) return;
+
+      try {
+        const now = new Date();
+        const [depHours, depMins] = activeReservation.departureTime.split(":").map(Number);
+        const depDate = new Date(`${activeReservation.departureDate}T00:00:00`);
+        depDate.setHours(depHours, depMins, 0, 0);
+
+        const diffMinutes = Math.round((depDate.getTime() - now.getTime()) / (1000 * 60));
+
+        // 출발 0분 ~ 5분 전 구간에 도달한 경우 자동 알람 발동
+        if (diffMinutes <= 5 && diffMinutes >= -5) {
+          setAlertRemainingMinutes(Math.max(1, diffMinutes));
+          setAlertTargetReservation(activeReservation);
+          setIsAlertModalOpen(true);
+          setHasAlertedIds((prev) => [...prev, activeReservation.id]);
+        }
+      } catch {
+        // 날짜 파싱 예외 무시
+      }
+    };
+
+    check5Minutes();
+    const interval = setInterval(check5Minutes, 30000);
+    return () => clearInterval(interval);
+  }, [activeReservation, hasAlertedIds]);
+
+  // 탑승 확정 핸들러
+  const handleConfirmBoarding = () => {
+    alert(
+      isKr
+        ? "✅ 탑승 상태가 확정되었습니다! 기사님께 탑승 이동 중임을 알렸습니다. 안전하게 승차해 주세요."
+        : "✅ 乘车状态已确认！已通知司机正在前往乘车点，请注意安全乘车。"
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* 
@@ -402,6 +452,22 @@ export function ReservationTab({
               </div>
             </div>
           )}
+
+          {/* 5분 전 탑승 알림 및 탑승/취소 선택 시뮬레이션 버튼 */}
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                setAlertRemainingMinutes(5);
+                setAlertTargetReservation(activeReservation);
+                setIsAlertModalOpen(true);
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700/80 font-black text-xs flex items-center justify-center gap-2 squishy-btn transition-colors cursor-pointer"
+            >
+              <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400 animate-bounce" />
+              <span>⏰ 셔틀 출발 5분 전 알람 및 탑승/취소 선택창 열기</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -1102,6 +1168,16 @@ export function ReservationTab({
           </div>
         </div>
       )}
+
+      {/* 5분 전 탑승 임박 알람 모달 (Web Audio 사운드 및 탑승/취소 선택) */}
+      <BoardingImminentAlertModal
+        isOpen={isAlertModalOpen}
+        reservation={alertTargetReservation}
+        remainingMinutes={alertRemainingMinutes}
+        onConfirmBoarding={handleConfirmBoarding}
+        onCancelBoarding={(id) => handleCancelReservation(id)}
+        onClose={() => setIsAlertModalOpen(false)}
+      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { ShuttleTrackingTab } from "@/components/tabs/ShuttleTrackingTab";
 import { FareHistoryTab } from "@/components/tabs/FareHistoryTab";
 import { useMobileBackHandler } from "@/hooks/useMobileBackHandler";
 import { PassengerFeedbackModal } from "@/components/passenger/PassengerFeedbackModal";
+import { InstallAppButton } from "@/components/common/InstallAppButton";
 
 interface ShuttleAppProps {
   initialNotice: Notice;
@@ -154,6 +155,9 @@ export function ShuttleApp({
               {lang === "KR" ? "접수하기 ➔" : "立即提交 ➔"}
             </span>
           </button>
+
+          {/* 스마트폰 홈 화면 앱 설치 배너 */}
+          <InstallAppButton variant="card" className="mt-2.5" />
         </div>
       </main>
 

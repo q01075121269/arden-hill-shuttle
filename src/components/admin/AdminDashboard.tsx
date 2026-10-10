@@ -21,6 +21,7 @@ import { CustomerSettlementHub } from "@/components/admin/CustomerSettlementHub"
 import { NoticePublisherModal } from "@/components/admin/NoticePublisherModal";
 import { VersionReleaseModal } from "@/components/VersionReleaseModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { useMobileBackHandler } from "@/hooks/useMobileBackHandler";
 import { ExitConfirmModal } from "@/components/common/ExitConfirmModal";
 
@@ -132,8 +133,11 @@ function AdminDashboardContent() {
           </div>
         </div>
 
-        {/* 우측 액션: 공지 발행 콤팩트 버튼, 다크/라이트 모드 토글, [KR | CN] 언어 토글 */}
+        {/* 우측 액션: 앱 설치, 공지 발행 콤팩트 버튼, 다크/라이트 모드 토글, [KR | CN] 언어 토글 */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* 홈 화면 앱 설치 버튼 */}
+          <InstallAppButton appName="아덴힐 스마트 셔틀 관제탑" variant="header" />
+
           {/* [📢 공지 발행] 콤팩트 버튼 (하단 긴급 센터에서 상단 헤더로 이관) */}
           <button
             type="button"

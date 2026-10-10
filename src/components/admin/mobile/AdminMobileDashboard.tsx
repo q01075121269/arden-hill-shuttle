@@ -31,6 +31,7 @@ import {
 import { Language } from "@/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthHeaderProfile } from "@/components/auth/AuthHeaderProfile";
+import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { useMobileBackHandler } from "@/hooks/useMobileBackHandler";
 import { ExitConfirmModal } from "@/components/common/ExitConfirmModal";
 import { NoticePublisherModal } from "@/components/admin/NoticePublisherModal";
@@ -334,6 +335,9 @@ export function AdminMobileDashboard() {
 
         {/* 우측 빠른 액션 */}
         <div className="flex items-center gap-1 shrink-0">
+          {/* 홈 화면 앱 설치 버튼 */}
+          <InstallAppButton appName="아덴힐 관리자 모바일" variant="compact" />
+
           {/* 긴급 공지 발송 버튼 */}
           <button
             type="button"

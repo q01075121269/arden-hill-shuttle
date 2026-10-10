@@ -6,6 +6,7 @@ import { Language } from "@/types";
 import { I18N } from "@/lib/constants";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthHeaderProfile } from "@/components/auth/AuthHeaderProfile";
+import { InstallAppButton } from "@/components/common/InstallAppButton";
 
 interface HeaderProps {
   currentLang: Language;
@@ -47,8 +48,12 @@ export function Header({
           </span>
         </button>
 
-        {/* 우측 조작 영역: 테마 토글 + 공지 벨 + [KR | CN] 언어 토글 */}
+        {/* 우측 조작 영역: 앱 설치 + 테마 토글 + 공지 벨 + [KR | CN] 언어 토글 */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* 홈 화면 앱 설치 버튼 (모바일 콤팩트, PC/태블릿 텍스트 배지) */}
+          <InstallAppButton variant="header" className="hidden sm:flex" />
+          <InstallAppButton variant="compact" className="sm:hidden" />
+
           {/* 다크/화이트 모드 원터치 토글 */}
           <ThemeToggle />
 
