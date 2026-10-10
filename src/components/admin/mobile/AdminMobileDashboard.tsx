@@ -31,6 +31,7 @@ import {
   Sparkles,
   Settings2,
   Image as ImageIcon,
+  QrCode,
 } from "lucide-react";
 import { Language } from "@/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -40,6 +41,7 @@ import { useMobileBackHandler } from "@/hooks/useMobileBackHandler";
 import { ExitConfirmModal } from "@/components/common/ExitConfirmModal";
 import { NoticePublisherModal } from "@/components/admin/NoticePublisherModal";
 import { exportElementToImage } from "@/lib/export-utils";
+import { AppInstallQrModal } from "@/components/admin/AppInstallQrModal";
 
 // Auth Actions & Types
 import {
@@ -102,6 +104,7 @@ export function AdminMobileDashboard() {
 
   // 모달 상태들
   const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
+  const [isAppQrModalOpen, setIsAppQrModalOpen] = useState(false);
   const [isStopoverSheetOpen, setIsStopoverSheetOpen] = useState(false);
   const [selectedRoundForPax, setSelectedRoundForPax] = useState<OperationRoundSummary | null>(null);
   const [expandedRoundKey, setExpandedRoundKey] = useState<string | null>("outbound-1");
@@ -491,6 +494,17 @@ export function AdminMobileDashboard() {
         <div className="flex items-center gap-1 shrink-0">
           {/* 홈 화면 앱 설치 버튼 */}
           <InstallAppButton appName="아덴힐 관리자 모바일" variant="compact" />
+
+          {/* 앱 설치 QR코드 다운로드 버튼 */}
+          <button
+            type="button"
+            onClick={() => setIsAppQrModalOpen(true)}
+            className="px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold flex items-center gap-1 squishy-btn shadow-2xs cursor-pointer"
+            title="고객용/기사용 앱 설치 QR코드 이미지 저장"
+          >
+            <QrCode className="h-3 w-3" />
+            <span>QR</span>
+          </button>
 
           {/* 긴급 공지 발송 버튼 */}
           <button
@@ -2247,6 +2261,12 @@ export function AdminMobileDashboard() {
           </div>
         </div>
       )}
+      {/* 앱 설치 QR코드 이미지 저장 및 배포 모달 */}
+      <AppInstallQrModal
+        isOpen={isAppQrModalOpen}
+        onClose={() => setIsAppQrModalOpen(false)}
+        lang={lang}
+      />
     </div>
   );
 }

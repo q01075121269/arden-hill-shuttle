@@ -27,6 +27,8 @@ import {
   ShieldAlert,
   Image as ImageIcon,
   Download,
+  Smartphone,
+  QrCode,
 } from "lucide-react";
 import { Language } from "@/types";
 import {
@@ -45,6 +47,7 @@ import {
 } from "@/app/actions/admin-operations";
 import { DailyLogPrint } from "@/components/admin/DailyLogPrint";
 import { exportElementToImage } from "@/lib/export-utils";
+import { AppInstallQrModal } from "@/components/admin/AppInstallQrModal";
 
 interface OperationScheduleManagerProps {
   lang: Language;
@@ -66,6 +69,7 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
   const monthlyScheduleRef = useRef<HTMLDivElement>(null);
   const [isExportingDailyImage, setIsExportingDailyImage] = useState(false);
   const [isExportingMonthlyImage, setIsExportingMonthlyImage] = useState(false);
+  const [isAppQrModalOpen, setIsAppQrModalOpen] = useState(false);
 
   // 2. 일일 운행 데이터 상태
   const [dailyData, setDailyData] = useState<DailyOperationData | null>(null);
@@ -640,12 +644,23 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
 
             {/* 우측 상단 액션 버튼 그룹 */}
             <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {/* 앱 설치 QR코드 다운로드 버튼 */}
+              <button
+                type="button"
+                onClick={() => setIsAppQrModalOpen(true)}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm shadow-md shadow-indigo-600/25 transition-all squishy-btn shrink-0 cursor-pointer"
+                title="고객용 및 기사용 스마트 셔틀 앱 설치 QR코드 이미지 다운로드 및 배포"
+              >
+                <Smartphone className="h-4 w-4" />
+                <span>{isKr ? "📱 앱 설치 QR코드" : "📱 App QR码"}</span>
+              </button>
+
               {/* 일일 계획표 이미지 저장 버튼 */}
               <button
                 type="button"
                 onClick={handleExportDailyImage}
                 disabled={isExportingDailyImage}
-                className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs sm:text-sm shadow-md shadow-sky-600/25 transition-all squishy-btn shrink-0 cursor-pointer"
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs sm:text-sm shadow-md shadow-sky-600/25 transition-all squishy-btn shrink-0 cursor-pointer"
                 title="오늘의 운행시간표와 회차 배차 현황을 이미지 파일(PNG)로 저장"
               >
                 <ImageIcon className="h-4 w-4" />
@@ -663,7 +678,7 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
                     window.print();
                   }
                 }}
-                className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-600/25 transition-all squishy-btn shrink-0 cursor-pointer"
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-600/25 transition-all squishy-btn shrink-0 cursor-pointer"
                 title="하단 공식 A4 운행일지 서식 보기, 인쇄 및 파일 저장"
               >
                 <Printer className="h-4 w-4" />
@@ -1989,6 +2004,12 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
           </div>
         </div>
       )}
+      {/* 앱 설치 QR코드 이미지 저장 및 배포 모달 */}
+      <AppInstallQrModal
+        isOpen={isAppQrModalOpen}
+        onClose={() => setIsAppQrModalOpen(false)}
+        lang={lang}
+      />
     </div>
   );
 }

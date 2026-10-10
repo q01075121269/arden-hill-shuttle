@@ -79,10 +79,16 @@ export function DailyLogPrint({
     { round: "5회차", departTime: "19:10", departPax: "4명", emartTime: "19:40", emartPax: "4명", resortTime: "20:15", resortPax: "4명", notes: "야간 복귀 정상 운행" },
   ];
 
-  // 실제 데이터 바인딩
+  // 실제 데이터 바인딩 (예약 인원이 아닌 실제 탑승/승차 완료된 인원 기준으로 기록)
   const outboundRows = data
     ? data.outboundRounds.map((r) => {
-        const paxStr = `${r.boardedPax || r.totalPax}명`;
+        const paxStr = `${r.boardedPax ?? 0}명`;
+        const vehicleLabel =
+          r.allocatedVehicleType === "large_bus"
+            ? "45인승 대형"
+            : r.allocatedVehicleType === "county"
+            ? "29인승 카운티"
+            : "카니발";
         return {
           round: `${r.roundNumber}회차`,
           departTime: r.timeText,
@@ -91,14 +97,20 @@ export function DailyLogPrint({
           emartPax: paxStr,
           airportTime: r.timeText,
           airportPax: paxStr,
-          notes: `${r.allocatedVehicleType === "carnival" ? "카니발" : "카운티"} 배정 (${r.vehiclePlate.slice(0, 10)})`,
+          notes: `${vehicleLabel} 배정 (${(r.vehiclePlate || "").slice(0, 10)})`,
         };
       })
     : defaultOutbound;
 
   const inboundRows = data
     ? data.inboundRounds.map((r) => {
-        const paxStr = `${r.boardedPax || r.totalPax}명`;
+        const paxStr = `${r.boardedPax ?? 0}명`;
+        const vehicleLabel =
+          r.allocatedVehicleType === "large_bus"
+            ? "45인승 대형"
+            : r.allocatedVehicleType === "county"
+            ? "29인승 카운티"
+            : "카니발";
         return {
           round: `${r.roundNumber}회차`,
           departTime: r.timeText,
@@ -107,7 +119,7 @@ export function DailyLogPrint({
           emartPax: paxStr,
           resortTime: r.timeText,
           resortPax: paxStr,
-          notes: `${r.allocatedVehicleType === "carnival" ? "카니발" : "카운티"} 배정`,
+          notes: `${vehicleLabel} 배정 (${(r.vehiclePlate || "").slice(0, 10)})`,
         };
       })
     : defaultInbound;
@@ -269,7 +281,7 @@ export function DailyLogPrint({
             <div className="grid grid-cols-2 h-11">
               <div className="border-r border-black flex flex-col items-center justify-center font-bold px-2 text-[10px]">
                 <span>{driverName.slice(0, 3)}</span>
-                <span className="text-[9px] text-neutral-500">(전자서명 완료)</span>
+                <span className="text-[9px] text-neutral-500">(인 / 서명)</span>
               </div>
               <div className="flex flex-col items-center justify-center font-bold px-2 text-[10px]">
                 <span>이관리</span>

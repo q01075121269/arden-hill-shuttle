@@ -134,10 +134,10 @@ export function DailyLogPrintView({ lang }: DailyLogPrintViewProps) {
             </div>
             <div className="grid grid-cols-2 h-14">
               <div className="border-r border-black flex items-center justify-center font-bold px-3">
-                김철수 (서명 완료)
+                김철수 (인 / 서명)
               </div>
               <div className="flex items-center justify-center font-bold text-neutral-400 px-3">
-                (인/서명)
+                (인 / 서명)
               </div>
             </div>
           </div>

@@ -12,6 +12,7 @@ import {
   Megaphone,
   Bell,
   Smartphone,
+  QrCode,
 } from "lucide-react";
 import { Language } from "@/types";
 import { OverviewTab } from "@/components/admin/OverviewTab";
@@ -24,6 +25,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { useMobileBackHandler } from "@/hooks/useMobileBackHandler";
 import { ExitConfirmModal } from "@/components/common/ExitConfirmModal";
+import { AppInstallQrModal } from "@/components/admin/AppInstallQrModal";
 
 export type AdminTab = "overview" | "operations" | "customers" | "master";
 
@@ -47,6 +49,7 @@ function AdminDashboardContent() {
     getNormalizedTab(searchParams.get("tab"))
   );
   const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
+  const [isAppQrModalOpen, setIsAppQrModalOpen] = useState(false);
 
   // 탭 변경 시 URL 쿼리와 동기화 (?tab=...)
   const handleTabChange = (newTab: AdminTab) => {
@@ -137,6 +140,17 @@ function AdminDashboardContent() {
         <div className="flex items-center gap-2 sm:gap-3">
           {/* 홈 화면 앱 설치 버튼 */}
           <InstallAppButton appName="아덴힐 스마트 셔틀 관제탑" variant="header" />
+
+          {/* [📱 앱 설치 QR] 이미지 저장/배포 버튼 */}
+          <button
+            type="button"
+            onClick={() => setIsAppQrModalOpen(true)}
+            className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center gap-1.5 squishy-btn shadow-xs shadow-indigo-600/30 transition-all cursor-pointer"
+            title={isKr ? "고객용 및 기사용 앱 설치 QR코드 이미지 저장 및 배포" : "保存与分发App安装QR码"}
+          >
+            <QrCode className="h-3.5 w-3.5" />
+            <span>{isKr ? "앱 설치 QR" : "App QR"}</span>
+          </button>
 
           {/* [📢 공지 발행] 콤팩트 버튼 (하단 긴급 센터에서 상단 헤더로 이관) */}
           <button
@@ -277,6 +291,13 @@ function AdminDashboardContent() {
         onClose={closeExitModal}
         onConfirm={confirmExit}
         title={isKr ? "아덴힐 관리자 관제를 종료하시겠습니까?" : "确定要退出雅顿山管理控制台吗？"}
+        lang={lang}
+      />
+
+      {/* 앱 설치 QR코드 이미지 저장 및 배포 모달 */}
+      <AppInstallQrModal
+        isOpen={isAppQrModalOpen}
+        onClose={() => setIsAppQrModalOpen(false)}
         lang={lang}
       />
     </div>
