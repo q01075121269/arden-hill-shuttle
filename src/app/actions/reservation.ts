@@ -36,7 +36,7 @@ export async function createReservationAction(
   // 3. 요금 계산 (입주민 우대 0원 / 일반 기준 1인 5,000원)
   const fareAmount = data.passengerCount * 5000;
 
-  // 4. 예약 레코드 생성 (서버 측 저장 시뮬레이션)
+  // 4. 예약 레코드 생성
   const newReservation: Reservation = {
     id: `RSV-${Date.now().toString(36).toUpperCase()}`,
     passengerName: data.passengerName,
@@ -55,11 +55,74 @@ export async function createReservationAction(
     createdAt: new Date().toISOString(),
   };
 
+  // 5. Supabase 실제 데이터베이스에 영구 저장
+  try {
+    const { getSupabaseServerClient } = await import("@/lib/supabase");
+    const supabase = getSupabaseServerClient();
+    await supabase.from("reservations").insert({
+      id: newReservation.id,
+      passenger_name: newReservation.passengerName,
+      phone: newReservation.phone,
+      pickup_location: newReservation.pickupLocation,
+      dropoff_location: newReservation.dropoffLocation,
+      departure_date: newReservation.departureDate,
+      departure_time: newReservation.departureTime,
+      passenger_count: newReservation.passengerCount,
+      vehicle_type: newReservation.vehicleType,
+      vehicle_number: newReservation.vehicleNumber,
+      fare_amount: newReservation.fareAmount,
+      payment_status: newReservation.paymentStatus,
+      boarding_status: newReservation.boardingStatus,
+      is_active: newReservation.is_active,
+      created_at: newReservation.createdAt,
+    });
+  } catch (dbErr) {
+    console.error("[Supabase reservations insert error]:", dbErr);
+  }
+
   return {
     success: true,
     data: newReservation,
     message: "탑승 예약이 성공적으로 접수되었습니다.",
   };
+}
+
+// 서버 액션: Supabase 실시간 예약 목록 조회
+export async function getReservationsAction(): Promise<ActionResult<Reservation[]>> {
+  try {
+    const { getSupabaseServerClient } = await import("@/lib/supabase");
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("reservations")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    const list: Reservation[] = (data || []).map((r) => ({
+      id: r.id,
+      passengerName: r.passenger_name,
+      phone: r.phone,
+      pickupLocation: r.pickup_location,
+      dropoffLocation: r.dropoff_location,
+      departureDate: r.departure_date,
+      departureTime: r.departure_time,
+      passengerCount: r.passenger_count,
+      vehicleType: r.vehicle_type,
+      vehicleNumber: r.vehicle_number,
+      fareAmount: r.fare_amount,
+      paymentStatus: r.payment_status,
+      boardingStatus: r.boarding_status,
+      is_active: r.is_active,
+      createdAt: r.created_at,
+    }));
+
+    return { success: true, data: list };
+  } catch (err) {
+    return { success: false, error: "데이터베이스 조회에 실패했습니다." };
+  }
 }
 
 // 서버 액션: 예약 직접 수정 (승객 요청)
