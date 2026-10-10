@@ -8,20 +8,16 @@ import {
   Users,
   Car,
   CheckCircle2,
-  PhoneCall,
   Trash2,
   Edit3,
-  Building,
   ArrowRight,
   ArrowRightLeft,
   X,
   UserCheck,
-  BellRing,
 } from "lucide-react";
 import { Language, Reservation } from "@/types";
 import {
   SHUTTLE_TIMETABLE,
-  EMERGENCY_CONTACTS,
   I18N,
 } from "@/lib/constants";
 import { BoardingImminentAlertModal } from "@/components/passenger/BoardingImminentAlertModal";
@@ -429,45 +425,7 @@ export function ReservationTab({
                 </button>
               </div>
             </div>
-          ) : (
-            <div className="p-3 rounded-2xl bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/50 space-y-2">
-              <p className="text-xs font-bold">
-                {t.activeReservationCard.closedNotice}
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                <a
-                  href={`tel:${EMERGENCY_CONTACTS.driver.phone}`}
-                  className="min-h-[44px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-800"
-                >
-                  <PhoneCall className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>{t.activeReservationCard.callDriver}</span>
-                </a>
-                <a
-                  href={`tel:${EMERGENCY_CONTACTS.admin.phone}`}
-                  className="min-h-[44px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-800"
-                >
-                  <Building className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>{t.activeReservationCard.callAdmin}</span>
-                </a>
-              </div>
-            </div>
-          )}
-
-          {/* 5분 전 탑승 알림 및 탑승/취소 선택 시뮬레이션 버튼 */}
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={() => {
-                setAlertRemainingMinutes(5);
-                setAlertTargetReservation(activeReservation);
-                setIsAlertModalOpen(true);
-              }}
-              className="w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700/80 font-black text-xs flex items-center justify-center gap-2 squishy-btn transition-colors cursor-pointer"
-            >
-              <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400 animate-bounce" />
-              <span>⏰ 셔틀 출발 5분 전 알람 및 탑승/취소 선택창 열기</span>
-            </button>
-          </div>
+          ) : null}
         </div>
       )}
 
