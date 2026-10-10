@@ -19,8 +19,8 @@ export function NoticeModal({ isOpen, onClose, notice, lang }: NoticeModalProps)
   const t = I18N[lang];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#151D2A] border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-slate-100 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop p-4 pt-16 pb-8 overflow-y-auto overscroll-none animate-in fade-in duration-200">
+      <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#151D2A] border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-slate-100 shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
         {/* 모달 헤더 */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/70 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-900/40">
           <div className="flex items-center gap-3">

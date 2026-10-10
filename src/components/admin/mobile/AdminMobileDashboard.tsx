@@ -75,7 +75,7 @@ import {
   type DriverMasterItem,
 } from "@/app/actions/admin-master";
 
-export type MobileTab = "operations" | "residents" | "settlement" | "fleet";
+export type MobileTab = "operations" | "tower" | "residents" | "settlement" | "fleet";
 
 export function AdminMobileDashboard() {
   const [lang, setLang] = useState<Language>("KR");
@@ -306,30 +306,30 @@ export function AdminMobileDashboard() {
   }, [operationsData, directionFilter]);
 
   return (
-    <div className="w-full max-w-md mx-auto min-h-screen pb-20 bg-slate-50 dark:bg-[#111318] text-slate-900 dark:text-slate-100 overflow-x-hidden relative flex flex-col font-sans select-none">
+    <div className="w-full max-w-md mx-auto min-h-screen pb-20 bg-slate-50 dark:bg-[#111318] text-slate-900 dark:text-slate-100 overflow-x-hidden relative flex flex-col font-sans select-none overscroll-x-none touch-pan-y">
       {/* =========================================================================
           1. 상단 모바일 슬림 헤더
       ========================================================================= */}
-      <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#151D2A]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 py-2.5 flex items-center justify-between shadow-2xs">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-xs">
+      <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#151D2A]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 py-2.5 flex items-center justify-between shadow-2xs overflow-hidden">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="h-8 w-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-xs shrink-0">
             <Bus className="h-4 w-4" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="font-black text-sm tracking-tight text-slate-900 dark:text-slate-100">
+              <span className="font-black text-sm tracking-tight text-slate-900 dark:text-slate-100 truncate">
                 아덴힐 관리자
               </span>
-              <span className="px-1.5 py-0.2 rounded-md bg-emerald-500 text-white text-[9px] font-black uppercase">
+              <span className="px-1.5 py-0.2 rounded-md bg-emerald-500 text-white text-[9px] font-black uppercase shrink-0">
                 MOBILE
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 font-medium">현장 긴급 기동 관제탑</p>
+            <p className="text-[10px] text-slate-400 font-medium truncate">현장 긴급 기동 관제탑</p>
           </div>
         </div>
 
         {/* 우측 빠른 액션 */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 shrink-0">
           {/* 긴급 공지 발송 버튼 */}
           <button
             type="button"
@@ -359,9 +359,41 @@ export function AdminMobileDashboard() {
       </header>
 
       {/* =========================================================================
-          2. 메인 뷰포트 바디 (선택된 탭)
+          2. 모바일 상단 탭: [1. 셔틀운행계획] ↔ [2. 통합관제]
       ========================================================================= */}
-      <main className="flex-1 p-3.5 space-y-3.5">
+      <div className="px-3.5 pt-2.5 pb-0.5">
+        <div className="flex gap-1 p-1 rounded-2xl bg-slate-200/70 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setActiveTab("operations")}
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all squishy-btn min-w-0 ${
+              activeTab === "operations"
+                ? "bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-2xs"
+                : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+            }`}
+          >
+            <Calendar className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">셔틀운행계획</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("tower")}
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all squishy-btn min-w-0 ${
+              activeTab === "tower"
+                ? "bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-2xs"
+                : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+            }`}
+          >
+            <Bus className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">통합관제</span>
+          </button>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          3. 메인 뷰포트 바디 (선택된 탭)
+      ========================================================================= */}
+      <main className="flex-1 p-3.5 space-y-3.5 overflow-x-hidden">
         {/* =======================================================================
             [탭 1] 운행·예약 (현장 긴급 통제 센터)
         ======================================================================= */}
@@ -421,40 +453,40 @@ export function AdminMobileDashboard() {
               </button>
             </div>
 
-            {/* 노선 방향 세그먼트 필터 */}
-            <div className="flex rounded-xl bg-slate-200/60 dark:bg-slate-800/60 p-1 text-xs font-bold">
+            {/* 노선 방향 세그먼트 필터 (가로 밀림 방지 min-w-0 truncate 적용) */}
+            <div className="flex rounded-xl bg-slate-200/60 dark:bg-slate-800/60 p-1 text-xs font-bold gap-1">
               <button
                 type="button"
                 onClick={() => setDirectionFilter("all")}
-                className={`flex-1 py-1.5 rounded-lg transition-all squishy-btn ${
+                className={`flex-1 min-w-0 py-1.5 px-1 rounded-lg transition-all squishy-btn text-center truncate ${
                   directionFilter === "all"
-                    ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs"
+                    ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-black"
                     : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
-                전체 회차 ({operationsData ? operationsData.outboundRounds.length + operationsData.inboundRounds.length : 0})
+                전체 ({operationsData ? operationsData.outboundRounds.length + operationsData.inboundRounds.length : 0})
               </button>
               <button
                 type="button"
                 onClick={() => setDirectionFilter("outbound")}
-                className={`flex-1 py-1.5 rounded-lg transition-all squishy-btn ${
+                className={`flex-1 min-w-0 py-1.5 px-1 rounded-lg transition-all squishy-btn text-center truncate ${
                   directionFilter === "outbound"
-                    ? "bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-2xs"
+                    ? "bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-2xs font-black"
                     : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
-                하행(아덴힐➔공항)
+                하행(공항행)
               </button>
               <button
                 type="button"
                 onClick={() => setDirectionFilter("inbound")}
-                className={`flex-1 py-1.5 rounded-lg transition-all squishy-btn ${
+                className={`flex-1 min-w-0 py-1.5 px-1 rounded-lg transition-all squishy-btn text-center truncate ${
                   directionFilter === "inbound"
-                    ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs"
+                    ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-black"
                     : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
-                상행(공항➔아덴힐)
+                상행(리조트행)
               </button>
             </div>
 
@@ -475,9 +507,9 @@ export function AdminMobileDashboard() {
                       className="p-3 bg-white dark:bg-[#151D2A] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:border-emerald-500/50 cursor-pointer squishy-btn transition-all"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black shrink-0 ${
                               isOutbound
                                 ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800"
                                 : "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800"
@@ -485,14 +517,14 @@ export function AdminMobileDashboard() {
                           >
                             {isOutbound ? "하행" : "상행"} {round.roundNumber}회차
                           </span>
-                          <span className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-1 truncate">
+                            <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                             {round.timeText} 출발
                           </span>
                         </div>
 
                         {/* 탄력 배차 배지 */}
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <span
                             className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${
                               isCounty
@@ -508,13 +540,13 @@ export function AdminMobileDashboard() {
 
                       {/* 예약 요약 및 터치 안내 */}
                       <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-                        <div className="font-bold text-slate-600 dark:text-slate-300">
+                        <div className="font-bold text-slate-600 dark:text-slate-300 truncate">
                           예약 승객: <span className="font-black text-emerald-600 dark:text-emerald-400">{round.totalPax}명</span>
                           <span className="text-[10px] text-slate-400 ml-1">
                             ({round.reservations.length}개 팀)
                           </span>
                         </div>
-                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 shrink-0">
                           명단 확인/관리 ➔
                         </span>
                       </div>
@@ -522,6 +554,171 @@ export function AdminMobileDashboard() {
                   );
                 })
               )}
+            </div>
+          </div>
+        )}
+
+        {/* =======================================================================
+            [탭 2] 통합관제 (모바일 실시간 관제 종합상황실)
+        ======================================================================= */}
+        {activeTab === "tower" && (
+          <div className="space-y-3">
+            {/* 1. 오늘의 종합 운행 관제 KPI */}
+            <div className="bg-white dark:bg-[#151D2A] p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-xl bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black">
+                    <Bus className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">
+                      실시간 셔틀 운행 현황
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      기준 일자: {selectedDate}
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-black">
+                  정상 가동 중
+                </span>
+              </div>
+
+              {/* 핵심 지표 4개 그리드 */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 font-bold block">총 운행 회차</span>
+                  <div className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                    14회 <span className="text-[10px] text-slate-400 font-normal">(왕복 7회)</span>
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 font-bold block">총 예약 승객</span>
+                  <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    {operationsData?.grandTotalPax || 0}명
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 font-bold block">하행(공항행)</span>
+                  <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    {operationsData?.totalOutboundPax || 0}명
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 font-bold block">상행(리조트행)</span>
+                  <div className="text-lg font-black text-blue-600 dark:text-blue-400 mt-0.5">
+                    {operationsData?.totalInboundPax || 0}명
+                  </div>
+                </div>
+              </div>
+
+              {/* 오늘의 경유지 표시 */}
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 font-bold">
+                  <MapPin className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  <span>오늘의 경유지:</span>
+                  <span className="font-black underline decoration-dashed">
+                    {operationsData?.stopoverName || "이마트 (정상 운행)"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsStopoverSheetOpen(true)}
+                  className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-800 dark:text-amber-200 text-[10px] font-black"
+                >
+                  변경
+                </button>
+              </div>
+            </div>
+
+            {/* 2. 실시간 현장 배차 셔틀 및 기사 연락망 */}
+            <div className="bg-white dark:bg-[#151D2A] p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-black text-xs text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <PhoneCall className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>현장 셔틀 기사 실시간 연락망</span>
+                </h3>
+                <span className="text-[10px] text-slate-400 font-bold">2대 정상 가동</span>
+              </div>
+
+              <div className="space-y-2">
+                {/* 1호차 */}
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-1.5 py-0.2 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-black">
+                        1호차
+                      </span>
+                      <span className="font-black text-xs text-slate-900 dark:text-slate-100 truncate">
+                        쏠라티 15인승
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">(제주 70가 1142)</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-bold mt-0.5">
+                      담당: 박기사님 (010-1234-5678)
+                    </div>
+                  </div>
+                  <a
+                    href="tel:010-1234-5678"
+                    className="px-2.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-black flex items-center gap-1 squishy-btn shrink-0 shadow-xs"
+                  >
+                    <PhoneCall className="h-3 w-3" />
+                    <span>통화</span>
+                  </a>
+                </div>
+
+                {/* 2호차 */}
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-1.5 py-0.2 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 text-[10px] font-black">
+                        2호차
+                      </span>
+                      <span className="font-black text-xs text-slate-900 dark:text-slate-100 truncate">
+                        스타리아 11인승
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">(제주 72바 5501)</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-bold mt-0.5">
+                      담당: 김기사님 (010-9876-5432)
+                    </div>
+                  </div>
+                  <a
+                    href="tel:010-9876-5432"
+                    className="px-2.5 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-black flex items-center gap-1 squishy-btn shrink-0 shadow-xs"
+                  >
+                    <PhoneCall className="h-3 w-3" />
+                    <span>통화</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. 모바일 비상 액션 및 관제 링크 */}
+            <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                <span>리조트 관제실 유선 직통</span>
+                <a href="tel:064-793-0000" className="text-emerald-600 dark:text-emerald-400 font-black flex items-center gap-1">
+                  <Phone className="h-3 w-3" /> 064-793-0000
+                </a>
+              </div>
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsNoticeModalOpen(true)}
+                  className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black flex items-center justify-center gap-1.5 squishy-btn"
+                >
+                  <Megaphone className="h-3.5 w-3.5" />
+                  <span>긴급 공지 발송</span>
+                </button>
+                <Link
+                  href="/admin?tab=overview"
+                  className="flex-1 py-2 rounded-xl bg-slate-900 dark:bg-slate-700 text-white text-xs font-black flex items-center justify-center gap-1.5 squishy-btn text-center"
+                >
+                  <Monitor className="h-3.5 w-3.5" />
+                  <span>PC 대화면 관제</span>
+                </Link>
+              </div>
             </div>
           </div>
         )}
@@ -924,59 +1121,77 @@ export function AdminMobileDashboard() {
       </main>
 
       {/* =========================================================================
-          3. 하단 고정 바텀 탭 네비게이션 (높이 60px)
+          3. 하단 고정 바텀 탭 네비게이션 (높이 60px, 모바일 가로 밀림 방지)
       ========================================================================= */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 max-w-md mx-auto bg-white/95 dark:bg-[#151D2A]/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800 h-[60px] flex items-center justify-around px-2 shadow-lg">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 max-w-md mx-auto bg-white/95 dark:bg-[#151D2A]/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800 h-[60px] flex items-center justify-around px-1.5 shadow-lg overscroll-none">
         <button
           type="button"
           onClick={() => setActiveTab("operations")}
-          className={`flex-1 py-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
+          className={`flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
             activeTab === "operations"
               ? "text-emerald-600 dark:text-emerald-400 font-black"
               : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold"
           }`}
+          title="셔틀운행계획"
         >
-          <Bus className="h-5 w-5" />
-          <span className="text-[10px]">운행·예약</span>
+          <Calendar className="h-4.5 w-4.5 shrink-0" />
+          <span className="text-[10px] truncate max-w-full">운행계획</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("tower")}
+          className={`flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
+            activeTab === "tower"
+              ? "text-emerald-600 dark:text-emerald-400 font-black"
+              : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold"
+          }`}
+          title="통합관제"
+        >
+          <Bus className="h-4.5 w-4.5 shrink-0" />
+          <span className="text-[10px] truncate max-w-full">통합관제</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("residents")}
-          className={`flex-1 py-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
+          className={`flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
             activeTab === "residents"
               ? "text-emerald-600 dark:text-emerald-400 font-black"
               : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold"
           }`}
+          title="입주민"
         >
-          <Users className="h-5 w-5" />
-          <span className="text-[10px]">입주민</span>
+          <Users className="h-4.5 w-4.5 shrink-0" />
+          <span className="text-[10px] truncate max-w-full">입주민</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("settlement")}
-          className={`flex-1 py-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
+          className={`flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
             activeTab === "settlement"
               ? "text-emerald-600 dark:text-emerald-400 font-black"
               : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold"
           }`}
+          title="수납"
         >
-          <CreditCard className="h-5 w-5" />
-          <span className="text-[10px]">수납</span>
+          <CreditCard className="h-4.5 w-4.5 shrink-0" />
+          <span className="text-[10px] truncate max-w-full">수납</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("fleet")}
-          className={`flex-1 py-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
+          className={`flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
             activeTab === "fleet"
               ? "text-emerald-600 dark:text-emerald-400 font-black"
               : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold"
           }`}
+          title="기사·차량"
         >
-          <Car className="h-5 w-5" />
-          <span className="text-[10px]">기사·차량</span>
+          <Car className="h-4.5 w-4.5 shrink-0" />
+          <span className="text-[10px] truncate max-w-full">차량</span>
         </button>
       </nav>
 

@@ -36,9 +36,10 @@ function AdminDashboardContent() {
   // URL 쿼리 ?tab= 파라미터 파싱 (?tab=operations, ?tab=customers 지원 및 하위호환)
   const getNormalizedTab = (raw: string | null): AdminTab => {
     if (raw === "operations" || raw === "schedule") return "operations";
+    if (raw === "overview" || raw === "tower") return "overview";
     if (raw === "customers" || raw === "settlement") return "customers";
-    if (raw === "overview" || raw === "master") return raw;
-    return "master"; // 기본값
+    if (raw === "master") return "master";
+    return "operations"; // 셔틀운행계획을 기본 첫 번째 탭으로 지정
   };
 
   const [activeTab, setActiveTab] = useState<AdminTab>(() =>
@@ -64,27 +65,27 @@ function AdminDashboardContent() {
     }
   }, [searchParams]);
 
-  // 전 모듈 공통 모바일 뒤로 가기 제어 (홈: master 또는 overview)
+  // 전 모듈 공통 모바일 뒤로 가기 제어 (홈: operations 또는 master)
   const { isExitModalOpen, closeExitModal, confirmExit } = useMobileBackHandler({
-    isHome: activeTab === "master" || activeTab === "overview",
+    isHome: activeTab === "operations" || activeTab === "master",
     hasOpenModal: isNoticeModalOpen,
     onCloseModal: () => setIsNoticeModalOpen(false),
-    onGoHome: () => handleTabChange("master"),
+    onGoHome: () => handleTabChange("operations"),
   });
 
-  // 4대 메인 세그먼트 탭 정의
+  // 4대 메인 세그먼트 탭 정의 (1순위: 셔틀운행계획, 2순위: 통합관제)
   const tabs: { id: AdminTab; labelKr: string; labelCn: string; icon: any }[] = [
     {
-      id: "overview",
-      labelKr: "실시간 통합 관제",
-      labelCn: "实时综合监控",
-      icon: LayoutDashboard,
+      id: "operations",
+      labelKr: "셔틀운행계획",
+      labelCn: "班车运行计划",
+      icon: CalendarCheck2,
     },
     {
-      id: "operations",
-      labelKr: "운행 계획 및 예약·일지",
-      labelCn: "运行计划与预约日志",
-      icon: CalendarCheck2,
+      id: "overview",
+      labelKr: "통합관제",
+      labelCn: "综合监控",
+      icon: LayoutDashboard,
     },
     {
       id: "customers",
@@ -101,7 +102,7 @@ function AdminDashboardContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 flex flex-col transition-colors">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 flex flex-col transition-colors overflow-x-hidden max-w-full overscroll-x-none touch-pan-y">
       {/* =========================================================================
           1. 관리자 상단 글로벌 헤더 (no-print)
       ========================================================================= */}
@@ -232,8 +233,11 @@ function AdminDashboardContent() {
       {/* =========================================================================
           3. 메인 콘텐츠 뷰 영역 (와이드 데스크탑 레이아웃)
       ========================================================================= */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 pb-24">
-        {/* [탭 1: 실시간 통합 관제] */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 pb-24 overflow-x-hidden">
+        {/* [탭 1: 셔틀운행계획] */}
+        {activeTab === "operations" && <OperationScheduleManager lang={lang} />}
+
+        {/* [탭 2: 통합관제] */}
         {activeTab === "overview" && (
           <OverviewTab
             lang={lang}
@@ -241,9 +245,6 @@ function AdminDashboardContent() {
             onNavigateTab={handleTabChange}
           />
         )}
-
-        {/* [탭 2: 운행 계획 및 예약·일지] */}
-        {activeTab === "operations" && <OperationScheduleManager lang={lang} />}
 
         {/* [탭 3: 고객 관리 및 수납 장부] */}
         {activeTab === "customers" && <CustomerSettlementHub lang={lang} />}

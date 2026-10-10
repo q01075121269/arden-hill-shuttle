@@ -175,8 +175,8 @@ export function AuthHeaderProfile({
           인증 모달 팝업
       ========================================================================= */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-white dark:bg-[#151D2A] rounded-3xl p-5 shadow-2xl border border-slate-200/90 dark:border-slate-800 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 pt-16 pb-8 overflow-y-auto overscroll-none">
+          <div className="w-full max-w-sm bg-white dark:bg-[#151D2A] rounded-3xl p-5 shadow-2xl border border-slate-200/90 dark:border-slate-800 space-y-4 my-auto animate-in fade-in zoom-in-95 duration-150">
             {/* 상단 닫기 */}
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">

@@ -57,11 +57,11 @@ function AdminLoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md bg-white dark:bg-[#151D2A] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+    <div className="w-full max-w-md bg-white dark:bg-[#151D2A] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 sm:p-8 shadow-xl space-y-4 sm:space-y-6 my-auto">
       {/* 헤더 */}
-      <div className="space-y-2 text-center">
-        <div className="inline-flex h-14 w-14 rounded-2xl bg-emerald-600 text-white items-center justify-center font-black shadow-lg shadow-emerald-600/20">
-          <Building className="h-7 w-7" />
+      <div className="space-y-1.5 text-center">
+        <div className="inline-flex h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-emerald-600 text-white items-center justify-center font-black shadow-lg shadow-emerald-600/20">
+          <Building className="h-6 w-6 sm:h-7 sm:w-7" />
         </div>
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
@@ -85,7 +85,7 @@ function AdminLoginForm() {
       )}
 
       {/* 로그인 폼 */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         {/* 아이디/연락처 */}
         <div className="space-y-1.5">
           <label className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -128,7 +128,7 @@ function AdminLoginForm() {
         </div>
 
         {/* 자동 로그인 (Remember Me) 체크박스 */}
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center justify-between pt-0.5">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -160,7 +160,7 @@ function AdminLoginForm() {
       </form>
 
       {/* 4인 관리자 빠른 계정 선택 프리셋 (현장 편의용) */}
-      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+      <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
         <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
           <span className="flex items-center gap-1">
             <Sparkles className="h-3 w-3 text-emerald-500" />
@@ -195,22 +195,22 @@ function AdminLoginForm() {
 
 export default function AdminLoginPage() {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F17] flex flex-col justify-between p-4 sm:p-8">
-      {/* 상단 테마 토글 */}
-      <div className="flex items-center justify-between max-w-md w-full mx-auto">
-        <span className="text-xs font-bold text-slate-400">제주 아덴힐 리조트 관제실</span>
+    <div className="min-h-[100dvh] bg-slate-50 dark:bg-[#0B0F17] flex flex-col justify-center items-center px-4 pt-14 pb-8 sm:py-12 overflow-x-hidden">
+      {/* 상단 상태 및 테마 토글 */}
+      <div className="flex items-center justify-between max-w-md w-full mb-3 shrink-0">
+        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">제주 아덴힐 리조트 관제실</span>
         <ThemeToggle />
       </div>
 
-      {/* 중앙 폼 */}
-      <div className="flex items-center justify-center py-6">
+      {/* 화면 정중앙 배치되는 관리자 로그인 폼 */}
+      <div className="w-full max-w-md flex items-center justify-center my-auto">
         <Suspense fallback={<div className="text-xs text-slate-400">불러오는 중...</div>}>
           <AdminLoginForm />
         </Suspense>
       </div>
 
-      {/* 푸터 */}
-      <div className="text-center text-[11px] text-slate-400 font-mono">
+      {/* 하단 푸터 */}
+      <div className="text-center text-[11px] text-slate-400 font-mono mt-4 shrink-0">
         ARDEN HILL RESORT SHUTTLE SECURITY CONTROLLER © 2026
       </div>
     </div>
