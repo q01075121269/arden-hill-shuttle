@@ -587,7 +587,7 @@ export function MasterDataManager({ lang }: MasterDataManagerProps) {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs sm:text-sm shadow-md shadow-sky-600/20 transition-all squishy-btn self-start sm:self-auto"
           >
             <Plus className="h-4 w-4" />
-            <span>{isKr ? "+ 신규 차량 등록" : "+ 登记新车辆"}</span>
+            <span>{isKr ? "신규 차량 등록" : "登记新车辆"}</span>
           </button>
         </div>
 
@@ -750,7 +750,7 @@ export function MasterDataManager({ lang }: MasterDataManagerProps) {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm shadow-md shadow-indigo-600/20 transition-all squishy-btn self-start sm:self-auto"
           >
             <Plus className="h-4 w-4" />
-            <span>{isKr ? "+ 신규 기사 등록" : "+ 登记新司机"}</span>
+            <span>{isKr ? "신규 기사 등록" : "登记新司机"}</span>
           </button>
         </div>
 

@@ -525,7 +525,7 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
                             className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs squishy-btn"
                           >
                             <Plus className="h-3.5 w-3.5" />
-                            <span>{isKr ? "+ 예약 수기 추가" : "+ 人工添加"}</span>
+                            <span>{isKr ? "예약 수기 추가" : "人工添加"}</span>
                           </button>
                         </div>
                       </div>
@@ -726,7 +726,7 @@ export function OperationScheduleManager({ lang }: OperationScheduleManagerProps
                             className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs squishy-btn"
                           >
                             <Plus className="h-3.5 w-3.5" />
-                            <span>{isKr ? "+ 예약 수기 추가" : "+ 人工添加"}</span>
+                            <span>{isKr ? "예약 수기 추가" : "人工添加"}</span>
                           </button>
                         </div>
                       </div>

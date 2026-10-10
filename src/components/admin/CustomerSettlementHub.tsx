@@ -572,7 +572,7 @@ export function CustomerSettlementHub({ lang }: CustomerSettlementHubProps) {
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm shadow-md shadow-indigo-600/20 transition-all squishy-btn shrink-0 self-start md:self-auto"
             >
               <Plus className="h-4 w-4" />
-              <span>{isKr ? "+ 신규 고객 수기 등록" : "+ 人工登记新住户"}</span>
+              <span>{isKr ? "신규 고객 수기 등록" : "人工登记新住户"}</span>
             </button>
           </div>
 
