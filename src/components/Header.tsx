@@ -35,8 +35,12 @@ export function Header({
           className="flex items-center gap-2 text-left focus:outline-hidden squishy-btn group cursor-pointer shrink-0"
           title={isKr ? "홈 첫 화면으로 이동" : "返回主页"}
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs group-hover:scale-105 transition-transform">
-            <Bus className="h-5 w-5" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl p-0.5 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 shadow-xs group-hover:scale-105 transition-transform shrink-0">
+            <img
+              src="/images/logo-symbol.png"
+              alt="아덴힐 스마트 셔틀 로고"
+              className="h-full w-full object-contain drop-shadow-xs"
+            />
           </div>
           <span className="font-black text-base tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap">
             {t.systemTitle}

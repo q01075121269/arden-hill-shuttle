@@ -194,8 +194,12 @@ export function AuthHeaderProfile({
               {/* 상단 닫기 */}
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-[#151D2A] z-10">
                 <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs">
-                    <User className="h-4 w-4" />
+                  <div className="h-7 w-7 rounded-xl p-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                    <img
+                      src="/images/logo-symbol.png"
+                      alt="아덴힐 로고"
+                      className="h-full w-full object-contain drop-shadow-xs"
+                    />
                   </div>
                   <span className="font-black text-sm text-slate-900 dark:text-slate-100">
                     {currentUser ? "내 계정 정보" : modalTab === "login" ? "입주민 간편 로그인" : "신규 회원가입 신청"}
@@ -374,14 +378,21 @@ export function AuthHeaderProfile({
                         {isPending ? "로그인 중..." : "원터치 로그인"}
                       </button>
 
-                      <div className="pt-1 text-center">
+                      <div className="pt-2 flex flex-col items-center gap-2 text-center border-t border-slate-100 dark:border-slate-800">
                         <button
                           type="button"
                           onClick={() => setModalTab("register")}
                           className="text-[11px] text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 font-bold underline"
                         >
-                          아직 회원이 아니신가요? 간편 가입 신청 ➔
+                          아직 회원이 아니신가요? 입주민 간편 가입 신청 ➔
                         </button>
+                        <a
+                          href="/admin/login"
+                          className="text-[11px] text-emerald-700 dark:text-emerald-400 hover:underline font-bold flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-200/60 dark:border-emerald-800/60"
+                        >
+                          <ShieldCheck className="h-3 w-3" />
+                          <span>기사님 / 관리자 전용 관제 로그인</span>
+                        </a>
                       </div>
                     </form>
                   ) : (

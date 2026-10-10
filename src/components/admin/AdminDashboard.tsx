@@ -108,8 +108,12 @@ function AdminDashboardContent() {
       ========================================================================= */}
       <header className="no-print sticky top-0 z-40 w-full border-b border-slate-200/60 dark:border-slate-800/80 bg-white/85 dark:bg-[#0B0F17]/85 backdrop-blur-md px-4 sm:px-8 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-md shadow-emerald-600/20">
-            <Building className="h-6 w-6" />
+          <div className="h-11 w-11 rounded-2xl p-1 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center shadow-md shadow-emerald-600/10 shrink-0">
+            <img
+              src="/images/logo-symbol.png"
+              alt="아덴힐 스마트 셔틀 로고"
+              className="h-full w-full object-contain drop-shadow-xs"
+            />
           </div>
           <div>
             <div className="flex items-center gap-2">

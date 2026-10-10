@@ -59,9 +59,13 @@ function AdminLoginForm() {
   return (
     <div className="w-full max-w-md bg-white dark:bg-[#151D2A] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 sm:p-8 shadow-xl space-y-4 sm:space-y-6 my-auto">
       {/* 헤더 */}
-      <div className="space-y-1.5 text-center">
-        <div className="inline-flex h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-emerald-600 text-white items-center justify-center font-black shadow-lg shadow-emerald-600/20">
-          <Building className="h-6 w-6 sm:h-7 sm:w-7" />
+      <div className="space-y-2 text-center flex flex-col items-center">
+        <div className="inline-flex h-14 w-14 sm:h-16 sm:w-16 rounded-2xl p-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 items-center justify-center shadow-lg shadow-emerald-600/15">
+          <img
+            src="/images/logo-symbol.png"
+            alt="아덴힐 스마트 셔틀 로고"
+            className="h-full w-full object-contain drop-shadow-xs"
+          />
         </div>
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">

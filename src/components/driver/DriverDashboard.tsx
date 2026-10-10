@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Bus,
   ShieldCheck,
@@ -129,10 +130,14 @@ export function DriverDashboard() {
           ========================================================================= */}
       {/* 1-1. 상단 헤더 */}
       <header className="sticky top-0 z-40 w-full h-14 border-b border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-[#111318]/95 backdrop-blur-md px-3.5 sm:px-4 flex items-center justify-between transition-colors box-border">
-        {/* 좌측: 셔틀 아이콘 + '아덴힐 드라이버' (단일 행 표출) */}
+        {/* 좌측: 누끼 로고 심볼 아이콘 + '아덴힐 드라이버' (단일 행 표출) */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className="h-9 w-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-xs shrink-0">
-            <Bus className="h-5 w-5" />
+          <div className="h-9 w-9 rounded-xl p-0.5 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center shadow-xs shrink-0">
+            <img
+              src="/images/logo-symbol.png"
+              alt="아덴힐 스마트 셔틀 로고"
+              className="h-full w-full object-contain drop-shadow-xs"
+            />
           </div>
           <span className="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap">
             아덴힐 드라이버
@@ -284,62 +289,69 @@ export function DriverDashboard() {
         onClose={() => setIsSafetyCheckOpen(false)}
       />
 
-      {/* 긴급 차량/운행 알림 모달 */}
-      {isEmergencyAlertOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/60 dark:bg-black/75 animate-in fade-in duration-200"
-        >
-          <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-[#1E222B] border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xl space-y-4 break-keep animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between">
-              <div className="h-10 w-10 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200/60 flex items-center justify-center shadow-xs">
-                <AlertOctagon className="h-5 w-5" />
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsEmergencyAlertOpen(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 squishy-btn"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                긴급 차량 및 운행 상황 전파
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">
-                차량 고장, 폭설/기상 악화, 접촉 사고 등 긴급 상황 발생 시 관리실에 즉시 연결됩니다.
-              </p>
-            </div>
-
-            {emergencySent ? (
-              <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-                <span>관리실에 비상 알림이 정상 전송되었습니다.</span>
-              </div>
-            ) : (
-              <div className="space-y-2 pt-1">
-                <a
-                  href={`tel:${EMERGENCY_CONTACTS.admin.phone}`}
-                  className="min-h-[46px] w-full px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm squishy-btn shadow-md flex items-center justify-center gap-2"
-                >
-                  <PhoneCall className="h-4 w-4" />
-                  <span>운영 관리실 긴급 전화 통화</span>
-                </a>
+      {/* 긴급 차량/운행 알림 모달 (createPortal로 최상위 document.body 렌더링) */}
+      {isEmergencyAlertOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setIsEmergencyAlertOpen(false)}
+            className="fixed inset-0 z-[999999] flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/75 dark:bg-black/80 animate-in fade-in duration-200 cursor-pointer"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-3xl bg-white dark:bg-[#1E222B] border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xl space-y-4 break-keep animate-in zoom-in-95 duration-150 cursor-default"
+            >
+              <div className="flex items-center justify-between">
+                <div className="h-10 w-10 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200/60 flex items-center justify-center shadow-xs">
+                  <AlertOctagon className="h-5 w-5" />
+                </div>
                 <button
                   type="button"
-                  onClick={() => setEmergencySent(true)}
-                  className="min-h-[42px] w-full px-3 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs squishy-btn hover:bg-slate-200"
+                  onClick={() => setIsEmergencyAlertOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 squishy-btn"
                 >
-                  비상 상황 시스템 전송
+                  <X className="h-5 w-5" />
                 </button>
               </div>
-            )}
-          </div>
-        </div>
-      )}
+
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  긴급 차량 및 운행 상황 전파
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">
+                  차량 고장, 폭설/기상 악화, 접촉 사고 등 긴급 상황 발생 시 관리실에 즉시 연결됩니다.
+                </p>
+              </div>
+
+              {emergencySent ? (
+                <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <span>관리실에 비상 알림이 정상 전송되었습니다.</span>
+                </div>
+              ) : (
+                <div className="space-y-2 pt-1">
+                  <a
+                    href={`tel:${EMERGENCY_CONTACTS.admin.phone}`}
+                    className="min-h-[46px] w-full px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm squishy-btn shadow-md flex items-center justify-center gap-2"
+                  >
+                    <PhoneCall className="h-4 w-4" />
+                    <span>운영 관리실 긴급 전화 통화</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setEmergencySent(true)}
+                    className="min-h-[42px] w-full px-3 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs squishy-btn hover:bg-slate-200"
+                  >
+                    비상 상황 시스템 전송
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* 시스템 버전 안내 모달 */}
       <VersionReleaseModal />

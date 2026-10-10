@@ -312,8 +312,12 @@ export function AdminMobileDashboard() {
       ========================================================================= */}
       <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#151D2A]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 py-2.5 flex items-center justify-between shadow-2xs overflow-hidden">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="h-8 w-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-xs shrink-0">
-            <Bus className="h-4 w-4" />
+          <div className="h-8 w-8 rounded-xl p-0.5 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center shadow-xs shrink-0">
+            <img
+              src="/images/logo-symbol.png"
+              alt="아덴힐 스마트 셔틀 로고"
+              className="h-full w-full object-contain drop-shadow-xs"
+            />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
